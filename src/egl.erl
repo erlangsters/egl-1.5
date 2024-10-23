@@ -8,8 +8,99 @@
 %% Written by Jonathan De Wachter <jonathan.dewachter@byteplug.io>
 %%
 -module(egl).
--export([foo/0]).
--nifs([foo/0]).
+
+-export([
+    choose_config/5,
+    copy_buffers/3,
+    create_context/4,
+    create_pbuffer_surface/3,
+    create_pixmap_surface/4,
+    create_window_surface/4,
+    destroy_context/2,
+    destroy_surface/2,
+    get_config_attrib/4,
+    get_configs/4,
+    get_current_display/0,
+    get_current_surface/1,
+    get_display/1,
+    get_error/0,
+    initialize/3,
+    make_current/4,
+    query_context/4,
+    query_string/2,
+    query_surface/4,
+    swap_buffers/2,
+    terminate/1,
+    wait_gl/0,
+    wait_native/1,
+    bind_tex_image/3,
+    release_tex_image/3,
+    surface_attrib/4,
+    swap_interval/2,
+    bind_api/1,
+    query_api/0,
+    create_pbuffer_from_client_buffer/5,
+    release_thread/0,
+    wait_client/0,
+    get_current_context/0,
+    create_sync/3,
+    destroy_sync/2,
+    client_wait_sync/4,
+    get_sync_attrib/4,
+    create_image/5,
+    destroy_image/2,
+    get_platform_display/3,
+    create_platform_window_surface/4,
+    create_platform_pixmap_surface/4,
+    wait_sync/3
+]).
+
+-nifs([
+    choose_config/5,
+    copy_buffers/3,
+    create_context/4,
+    create_pbuffer_surface/3,
+    create_pixmap_surface/4,
+    create_window_surface/4,
+    destroy_context/2,
+    destroy_surface/2,
+    get_config_attrib/4,
+    get_configs/4,
+    get_current_display/0,
+    get_current_surface/1,
+    get_display/1,
+    get_error/0,
+    initialize/3,
+    make_current/4,
+    query_context/4,
+    query_string/2,
+    query_surface/4,
+    swap_buffers/2,
+    terminate/1,
+    wait_gl/0,
+    wait_native/1,
+    bind_tex_image/3,
+    release_tex_image/3,
+    surface_attrib/4,
+    swap_interval/2,
+    bind_api/1,
+    query_api/0,
+    create_pbuffer_from_client_buffer/5,
+    release_thread/0,
+    wait_client/0,
+    get_current_context/0,
+    create_sync/3,
+    destroy_sync/2,
+    client_wait_sync/4,
+    get_sync_attrib/4,
+    create_image/5,
+    destroy_image/2,
+    get_platform_display/3,
+    create_platform_window_surface/4,
+    create_platform_pixmap_surface/4,
+    wait_sync/3
+]).
+
 -on_load(init/0).
 
 % EGL 1.0.
@@ -185,5 +276,134 @@ init() ->
     % XXX: Generated library should be `egl.so` but erlang.mk won't allow that.
     ok = erlang:load_nif("./priv/egl_1_5", 0).
 
-foo() ->
+choose_config(_A, _B, _C, _D, _E) ->
+    erlang:nif_error(nif_library_not_loaded).
+
+copy_buffers(_A, _B, _C) ->
+    erlang:nif_error(nif_library_not_loaded).
+
+create_context(_A, _B, _C, _D) ->
+    erlang:nif_error(nif_library_not_loaded).
+
+create_pbuffer_surface(_A, _B, _C) ->
+    erlang:nif_error(nif_library_not_loaded).
+
+create_pixmap_surface(_A, _B, _C, _D) ->
+    erlang:nif_error(nif_library_not_loaded).
+
+create_window_surface(_A, _B, _C, _D) ->
+    erlang:nif_error(nif_library_not_loaded).
+
+destroy_context(_A, _B) ->
+    erlang:nif_error(nif_library_not_loaded).
+
+destroy_surface(_A, _B) ->
+    erlang:nif_error(nif_library_not_loaded).
+
+get_config_attrib(_A, _B, _C, _D) ->
+    erlang:nif_error(nif_library_not_loaded).
+
+get_configs(_A, _B, _C, _D) ->
+    erlang:nif_error(nif_library_not_loaded).
+
+get_current_display() ->
+    erlang:nif_error(nif_library_not_loaded).
+
+get_current_surface(_A) ->
+    erlang:nif_error(nif_library_not_loaded).
+
+get_display(_A) ->
+    erlang:nif_error(nif_library_not_loaded).
+
+get_error() ->
+    erlang:nif_error(nif_library_not_loaded).
+
+get_proc_address(_A) ->
+    erlang:nif_error(nif_library_not_loaded).
+
+initialize(_A, _B, _C) ->
+    erlang:nif_error(nif_library_not_loaded).
+
+make_current(_A, _B, _C, _D) ->
+    erlang:nif_error(nif_library_not_loaded).
+
+query_context(_A, _B, _C, _D) ->
+    erlang:nif_error(nif_library_not_loaded).
+
+query_string(_A, _B) ->
+    erlang:nif_error(nif_library_not_loaded).
+
+query_surface(_A, _B, _C, _D) ->
+    erlang:nif_error(nif_library_not_loaded).
+
+swap_buffers(_A, _B) ->
+    erlang:nif_error(nif_library_not_loaded).
+
+terminate(_A) ->
+    erlang:nif_error(nif_library_not_loaded).
+
+wait_gl() ->
+    erlang:nif_error(nif_library_not_loaded).
+
+wait_native(_A) ->
+    erlang:nif_error(nif_library_not_loaded).
+
+bind_tex_image(_A, _B, _C) ->
+    erlang:nif_error(nif_library_not_loaded).
+
+release_tex_image(_A, _B, _C) ->
+    erlang:nif_error(nif_library_not_loaded).
+
+surface_attrib(_A, _B, _C, _D) ->
+    erlang:nif_error(nif_library_not_loaded).
+
+swap_interval(_A, _B) ->
+    erlang:nif_error(nif_library_not_loaded).
+
+bind_api(_A) ->
+    erlang:nif_error(nif_library_not_loaded).
+
+query_api() ->
+    erlang:nif_error(nif_library_not_loaded).
+
+create_pbuffer_from_client_buffer(_A, _B, _C, _D, _E) ->
+    erlang:nif_error(nif_library_not_loaded).
+
+release_thread() ->
+    erlang:nif_error(nif_library_not_loaded).
+
+wait_client() ->
+    erlang:nif_error(nif_library_not_loaded).
+
+get_current_context() ->
+    erlang:nif_error(nif_library_not_loaded).
+
+create_sync(_A, _B, _C) ->
+    erlang:nif_error(nif_library_not_loaded).
+
+destroy_sync(_A, _B) ->
+    erlang:nif_error(nif_library_not_loaded).
+
+client_wait_sync(_A, _B, _C, _D) ->
+    erlang:nif_error(nif_library_not_loaded).
+
+get_sync_attrib(_A, _B, _C, _D) ->
+    erlang:nif_error(nif_library_not_loaded).
+
+create_image(_A, _B, _C, _D, _E) ->
+    erlang:nif_error(nif_library_not_loaded).
+
+destroy_image(_A, _B) ->
+    erlang:nif_error(nif_library_not_loaded).
+
+get_platform_display(_A, _B, _C) ->
+    erlang:nif_error(nif_library_not_loaded).
+
+create_platform_window_surface(_A, _B, _C, _D) ->
+    erlang:nif_error(nif_library_not_loaded).
+
+create_platform_pixmap_surface(_A, _B, _C, _D) ->
+    erlang:nif_error(nif_library_not_loaded).
+
+wait_sync(_A, _B, _C) ->
     erlang:nif_error(nif_library_not_loaded).
