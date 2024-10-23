@@ -7,6 +7,14 @@
 %%
 %% Written by Jonathan De Wachter <jonathan.dewachter@byteplug.io>
 %%
--module(egl_1_5).
+-module(egl).
+-export([foo/0]).
+-nifs([foo/0]).
+-on_load(init/0).
 
--export([]).
+init() ->
+    % XXX: Generated library should be `egl.so` but erlang.mk won't allow that.
+    ok = erlang:load_nif("./priv/egl_1_5", 0).
+
+foo() ->
+    erlang:nif_error(nif_library_not_loaded).
