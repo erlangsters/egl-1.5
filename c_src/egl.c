@@ -2,6 +2,9 @@
 #include <erl_nif.h>
 #include <EGL/egl.h>
 
+ERL_NIF_TERM ok_atom;
+ERL_NIF_TERM not_ok_atom;
+
 static ErlNifResourceType* egl_display_resource_type = NULL;
 static ErlNifResourceType* egl_config_resource_type = NULL;
 static ErlNifResourceType* egl_surface_resource_type = NULL;
@@ -9,6 +12,29 @@ static ErlNifResourceType* egl_context_resource_type = NULL;
 static ErlNifResourceType* egl_client_buffer_resource_type = NULL;
 static ErlNifResourceType* egl_sync_resource_type = NULL;
 static ErlNifResourceType* egl_image_resource_type = NULL;
+
+ERL_NIF_TERM egl_no_display_atom;
+
+ERL_NIF_TERM egl_success_atom;
+ERL_NIF_TERM egl_not_initialized_atom;
+ERL_NIF_TERM egl_bad_access_atom;
+ERL_NIF_TERM egl_bad_alloc_atom;
+ERL_NIF_TERM egl_bad_attribute_atom;
+ERL_NIF_TERM egl_bad_context_atom;
+ERL_NIF_TERM egl_bad_config_atom;
+ERL_NIF_TERM egl_bad_current_surface_atom;
+ERL_NIF_TERM egl_bad_display_atom;
+ERL_NIF_TERM egl_bad_surface_atom;
+ERL_NIF_TERM egl_bad_match_atom;
+ERL_NIF_TERM egl_bad_parameter_atom;
+ERL_NIF_TERM egl_bad_native_pixmap_atom;
+ERL_NIF_TERM egl_bad_native_window_atom;
+ERL_NIF_TERM egl_context_lost_atom;
+
+ERL_NIF_TERM egl_client_apis_atom;
+ERL_NIF_TERM egl_vendor_atom;
+ERL_NIF_TERM egl_version_atom;
+ERL_NIF_TERM egl_extensions_atom;
 
 static void egl_display_resource_dtor(ErlNifEnv* env, void* obj) {
 }
@@ -33,6 +59,9 @@ static void egl_image_resource_dtor(ErlNifEnv* env, void* obj) {
 
 static int nif_module_load(ErlNifEnv *env, void **priv_data, ERL_NIF_TERM arg)
 {
+    ok_atom = enif_make_atom(env, "ok");
+    not_ok_atom = enif_make_atom(env, "not_ok");
+
     egl_display_resource_type = enif_open_resource_type(env, NULL, "egl_display", egl_display_resource_dtor, ERL_NIF_RT_CREATE, NULL);
     if (egl_display_resource_type == NULL) {
         fprintf(stderr, "failed to open 'EGL display' resource type\n");
@@ -74,6 +103,29 @@ static int nif_module_load(ErlNifEnv *env, void **priv_data, ERL_NIF_TERM arg)
         fprintf(stderr, "failed to open 'EGL image' resource type\n");
         return -1;
     }
+
+    egl_no_display_atom = enif_make_atom(env, "no_display");
+
+    egl_success_atom = enif_make_atom(env, "success");
+    egl_not_initialized_atom = enif_make_atom(env, "not_initialized");
+    egl_bad_access_atom = enif_make_atom(env, "bad_access");
+    egl_bad_alloc_atom = enif_make_atom(env, "bad_alloc");
+    egl_bad_attribute_atom = enif_make_atom(env, "bad_attribute");
+    egl_bad_context_atom = enif_make_atom(env, "bad_context");
+    egl_bad_config_atom = enif_make_atom(env, "bad_config");
+    egl_bad_current_surface_atom = enif_make_atom(env, "bad_current_surface");
+    egl_bad_display_atom = enif_make_atom(env, "bad_display");
+    egl_bad_surface_atom = enif_make_atom(env, "bad_surface");
+    egl_bad_match_atom = enif_make_atom(env, "bad_match");
+    egl_bad_parameter_atom = enif_make_atom(env, "bad_parameter");
+    egl_bad_native_pixmap_atom = enif_make_atom(env, "bad_native_pixmap");
+    egl_bad_native_window_atom = enif_make_atom(env, "bad_native_window");
+    egl_context_lost_atom = enif_make_atom(env, "context_lost");
+
+    egl_client_apis_atom = enif_make_atom(env, "client_apis");
+    egl_vendor_atom = enif_make_atom(env, "vendor");
+    egl_version_atom = enif_make_atom(env, "version");
+    egl_extensions_atom = enif_make_atom(env, "extensions");
 
     return 0;
 }
@@ -187,38 +239,39 @@ static ERL_NIF_TERM nif_get_display(ErlNifEnv* env, int argc, const ERL_NIF_TERM
 
 static ERL_NIF_TERM nif_get_error(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+
     EGLint error = eglGetError();
     switch (error) {
         case EGL_SUCCESS:
-            return enif_make_atom(env, "success");
+            return egl_success_atom;
         case EGL_NOT_INITIALIZED:
-            return enif_make_atom(env, "not_initialized");
+            return egl_not_initialized_atom;
         case EGL_BAD_ACCESS:
-            return enif_make_atom(env, "bad_access");
+            return egl_bad_access_atom;
         case EGL_BAD_ALLOC:
-            return enif_make_atom(env, "bad_alloc");
+            return egl_bad_alloc_atom;
         case EGL_BAD_ATTRIBUTE:
-            return enif_make_atom(env, "bad_attribute");
+            return egl_bad_attribute_atom;
         case EGL_BAD_CONTEXT:
-            return enif_make_atom(env, "bad_context");
+            return egl_bad_context_atom;
         case EGL_BAD_CONFIG:
-            return enif_make_atom(env, "bad_config");
+            return egl_bad_config_atom;
         case EGL_BAD_CURRENT_SURFACE:
-            return enif_make_atom(env, "bad_current_surface");
+            return egl_bad_current_surface_atom;
         case EGL_BAD_DISPLAY:
-            return enif_make_atom(env, "bad_display");
+            return egl_bad_display_atom;
         case EGL_BAD_SURFACE:
-            return enif_make_atom(env, "bad_surface");
+            return egl_bad_surface_atom;
         case EGL_BAD_MATCH:
-            return enif_make_atom(env, "bad_match");
+            return egl_bad_match_atom;
         case EGL_BAD_PARAMETER:
-            return enif_make_atom(env, "bad_parameter");
+            return egl_bad_parameter_atom;
         case EGL_BAD_NATIVE_PIXMAP:
-            return enif_make_atom(env, "bad_native_pixmap");
+            return egl_bad_native_pixmap_atom;
         case EGL_BAD_NATIVE_WINDOW:
-            return enif_make_atom(env, "bad_native_window");
+            return egl_bad_native_window_atom;
         case EGL_CONTEXT_LOST:
-            return enif_make_atom(env, "context_lost");
+            return egl_context_lost_atom;
     }
 }
 
@@ -235,12 +288,12 @@ static ERL_NIF_TERM nif_initialize(ErlNifEnv* env, int argc, const ERL_NIF_TERM 
     if (result == EGL_TRUE) {
         return enif_make_tuple2(
             env,
-            enif_make_atom(env, "ok"),
+            ok_atom,
             enif_make_tuple2(env, enif_make_int(env, major), enif_make_int(env, minor))
         );
     }
     else {
-        return enif_make_atom(env, "not_ok");
+        return not_ok_atom;
     }
 }
 
@@ -261,8 +314,7 @@ static ERL_NIF_TERM nif_query_context(ErlNifEnv* env, int argc, const ERL_NIF_TE
 static ERL_NIF_TERM nif_query_string(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     EGLDisplay display;
-    ERL_NIF_TERM atom_no_display = enif_make_atom(env, "no_display");
-    if (enif_is_identical(argv[0], atom_no_display)) {
+    if (enif_is_identical(argv[0], egl_no_display_atom)) {
         display = EGL_NO_DISPLAY;
     }
     else {
@@ -273,21 +325,17 @@ static ERL_NIF_TERM nif_query_string(ErlNifEnv* env, int argc, const ERL_NIF_TER
         display = *((EGLDisplay*)display_resource);
     }
 
-    ERL_NIF_TERM atom_vendor = enif_make_atom(env, "vendor");
-    ERL_NIF_TERM atom_version = enif_make_atom(env, "version");
-    ERL_NIF_TERM atom_api_clients = enif_make_atom(env, "client_apis");
-    ERL_NIF_TERM atom_extensions = enif_make_atom(env, "extensions");
     EGLint name;
-    if (enif_is_identical(argv[1], atom_api_clients)) {
+    if (enif_is_identical(argv[1], egl_client_apis_atom)) {
         name = EGL_CLIENT_APIS;
     }
-    else if (enif_is_identical(argv[1], atom_vendor)) {
+    else if (enif_is_identical(argv[1], egl_vendor_atom)) {
         name = EGL_VENDOR;
     }
-    else if (enif_is_identical(argv[1], atom_version)) {
+    else if (enif_is_identical(argv[1], egl_version_atom)) {
         name = EGL_VERSION;
     }
-    else if (enif_is_identical(argv[1], atom_extensions)) {
+    else if (enif_is_identical(argv[1], egl_extensions_atom)) {
         name = EGL_EXTENSIONS;
     }
     else {
@@ -296,13 +344,13 @@ static ERL_NIF_TERM nif_query_string(ErlNifEnv* env, int argc, const ERL_NIF_TER
 
     const char* result = eglQueryString(display, name);
     if (result == NULL) {
-        return enif_make_atom(env, "not_ok");
+        return not_ok_atom;
     }
     else {
 
         return enif_make_tuple2(
             env,
-            enif_make_atom(env, "ok"),
+            ok_atom,
             enif_make_string(env, result, ERL_NIF_LATIN1)
         );
     }
@@ -332,10 +380,10 @@ static ERL_NIF_TERM nif_terminate(ErlNifEnv* env, int argc, const ERL_NIF_TERM a
 
     EGLBoolean result = eglTerminate(display);
     if (result == EGL_TRUE) {
-        return enif_make_atom(env, "ok");
+        return ok_atom;
     }
     else {
-        return enif_make_atom(env, "not_ok");
+        return not_ok_atom;
     }
 }
 
