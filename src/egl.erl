@@ -33,7 +33,7 @@
     get_current_surface/1,
     get_display/1,
     get_error/0,
-    initialize/3,
+    initialize/1,
     make_current/4,
     query_context/4,
     query_string/2,
@@ -79,7 +79,7 @@
     get_current_surface/1,
     get_display/1,
     get_error/0,
-    initialize/3,
+    initialize/1,
     make_current/4,
     query_context/4,
     query_string/2,
@@ -343,7 +343,14 @@ get_display(_NativeDisplay) ->
 get_error() ->
     erlang:nif_error(nif_library_not_loaded).
 
-initialize(_A, _B, _C) ->
+%%
+%% eglInitialize — initialize an EGL display connection
+%%
+%% - Unlike original C function, it returns EGL version.
+%% - bar
+%%
+-spec initialize(display()) -> {ok, {pos_integer(), pos_integer()}} | not_ok.
+initialize(_Display) ->
     erlang:nif_error(nif_library_not_loaded).
 
 make_current(_A, _B, _C, _D) ->
@@ -361,6 +368,13 @@ query_surface(_A, _B, _C, _D) ->
 swap_buffers(_A, _B) ->
     erlang:nif_error(nif_library_not_loaded).
 
+%%
+%% eglTerminate — terminate an EGL display connection
+%%
+%% - foo.
+%% - bar
+%%
+-spec terminate(display()) -> ok | not_ok.
 terminate(_A) ->
     erlang:nif_error(nif_library_not_loaded).
 
