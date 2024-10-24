@@ -194,9 +194,24 @@ static ERL_NIF_TERM nif_get_error(ErlNifEnv* env, int argc, const ERL_NIF_TERM a
 
 static ERL_NIF_TERM nif_initialize(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
-    // EGLAPI EGLBoolean EGLAPIENTRY eglInitialize (EGLDisplay dpy, EGLint *major, EGLint *minor);
+    void* display_resource;
+    if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
+        return enif_make_badarg(env);
+    }
+    EGLDisplay display = *((EGLDisplay*)display_resource);
 
-    return enif_make_atom(env, "ok");
+    EGLint major, minor;
+    EGLBoolean result = eglInitialize(display, &major, &minor);
+    if (result == EGL_TRUE) {
+        return enif_make_tuple2(
+            env,
+            enif_make_atom(env, "ok"),
+            enif_make_tuple2(env, enif_make_int(env, major), enif_make_int(env, minor))
+        );
+    }
+    else {
+        return enif_make_atom(env, "not_ok");
+    }
 }
 
 static ERL_NIF_TERM nif_make_current(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
@@ -236,9 +251,19 @@ static ERL_NIF_TERM nif_swap_buffers(ErlNifEnv* env, int argc, const ERL_NIF_TER
 
 static ERL_NIF_TERM nif_terminate(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
-    // EGLAPI EGLBoolean EGLAPIENTRY eglTerminate (EGLDisplay dpy);
+    void* display_resource;
+    if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
+        return enif_make_badarg(env);
+    }
+    EGLDisplay display = *((EGLDisplay*)display_resource);
 
-    return enif_make_atom(env, "ok");
+    EGLBoolean result = eglTerminate(display);
+    if (result == EGL_TRUE) {
+        return enif_make_atom(env, "ok");
+    }
+    else {
+        return enif_make_atom(env, "not_ok");
+    }
 }
 
 static ERL_NIF_TERM nif_wait_gl(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
@@ -411,7 +436,7 @@ static ErlNifFunc nif_functions[] = {
     {"get_current_surface", 1, nif_get_current_surface},
     {"get_display", 1, nif_get_display},
     {"get_error", 0, nif_get_error},
-    {"initialize", 3, nif_initialize},
+    {"initialize", 1, nif_initialize},
     {"make_current", 4, nif_make_current},
     {"query_context", 4, nif_query_context},
     {"query_string", 2, nif_query_string},
