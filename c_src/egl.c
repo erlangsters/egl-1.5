@@ -187,9 +187,39 @@ static ERL_NIF_TERM nif_get_display(ErlNifEnv* env, int argc, const ERL_NIF_TERM
 
 static ERL_NIF_TERM nif_get_error(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
-    // EGLAPI EGLint EGLAPIENTRY eglGetError (void);
-
-    return enif_make_atom(env, "ok");
+    EGLint error = eglGetError();
+    switch (error) {
+        case EGL_SUCCESS:
+            return enif_make_atom(env, "success");
+        case EGL_NOT_INITIALIZED:
+            return enif_make_atom(env, "not_initialized");
+        case EGL_BAD_ACCESS:
+            return enif_make_atom(env, "bad_access");
+        case EGL_BAD_ALLOC:
+            return enif_make_atom(env, "bad_alloc");
+        case EGL_BAD_ATTRIBUTE:
+            return enif_make_atom(env, "bad_attribute");
+        case EGL_BAD_CONTEXT:
+            return enif_make_atom(env, "bad_context");
+        case EGL_BAD_CONFIG:
+            return enif_make_atom(env, "bad_config");
+        case EGL_BAD_CURRENT_SURFACE:
+            return enif_make_atom(env, "bad_current_surface");
+        case EGL_BAD_DISPLAY:
+            return enif_make_atom(env, "bad_display");
+        case EGL_BAD_SURFACE:
+            return enif_make_atom(env, "bad_surface");
+        case EGL_BAD_MATCH:
+            return enif_make_atom(env, "bad_match");
+        case EGL_BAD_PARAMETER:
+            return enif_make_atom(env, "bad_parameter");
+        case EGL_BAD_NATIVE_PIXMAP:
+            return enif_make_atom(env, "bad_native_pixmap");
+        case EGL_BAD_NATIVE_WINDOW:
+            return enif_make_atom(env, "bad_native_window");
+        case EGL_CONTEXT_LOST:
+            return enif_make_atom(env, "context_lost");
+    }
 }
 
 static ERL_NIF_TERM nif_initialize(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
