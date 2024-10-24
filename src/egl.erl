@@ -329,13 +329,18 @@ get_current_display() ->
 get_current_surface(_A) ->
     erlang:nif_error(nif_library_not_loaded).
 
-get_display(_A) ->
+%%
+%% eglGetDisplay — return an EGL display connection
+%%
+%% - Parameter must be 'default_display'.
+%%
+%% XXX: First parameter must be reworked.
+%%
+-spec get_display(default_display) -> no_display | display().
+get_display(_NativeDisplay) ->
     erlang:nif_error(nif_library_not_loaded).
 
 get_error() ->
-    erlang:nif_error(nif_library_not_loaded).
-
-get_proc_address(_A) ->
     erlang:nif_error(nif_library_not_loaded).
 
 initialize(_A, _B, _C) ->

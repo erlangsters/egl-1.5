@@ -169,9 +169,20 @@ static ERL_NIF_TERM nif_get_current_surface(ErlNifEnv* env, int argc, const ERL_
 
 static ERL_NIF_TERM nif_get_display(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
-    // EGLAPI EGLDisplay EGLAPIENTRY eglGetDisplay (EGLNativeDisplayType display_id);
+    // XXX: First parameter must be read and used. Will be done in later
+    //      revisions.
 
-    return enif_make_atom(env, "ok");
+    EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+
+    if (display == EGL_NO_DISPLAY) {
+        return enif_make_atom(env, "no_display");
+    }
+    else {
+        void* display_resource = enif_alloc_resource(egl_display_resource_type, sizeof(EGLDisplay));
+        *((EGLDisplay*)display_resource) = display;
+
+        return enif_make_resource(env, display_resource);
+    }
 }
 
 static ERL_NIF_TERM nif_get_error(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
