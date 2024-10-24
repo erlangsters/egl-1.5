@@ -381,7 +381,17 @@ make_current(_A, _B, _C, _D) ->
 query_context(_A, _B, _C, _D) ->
     erlang:nif_error(nif_library_not_loaded).
 
-query_string(_A, _B) ->
+%%
+%% eglQueryString — return a string describing properties of the EGL client or of an EGL display connection
+%%
+%% - foo
+%% - bar
+%%
+-spec query_string(
+    no_display | display(),
+    client_apis | vendor | version | extensions
+) -> {ok, string()} | not_ok.
+query_string(_Display, _Name) ->
     erlang:nif_error(nif_library_not_loaded).
 
 query_surface(_A, _B, _C, _D) ->
