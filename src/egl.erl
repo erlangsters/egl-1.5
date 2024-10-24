@@ -9,6 +9,15 @@
 %%
 -module(egl).
 
+-export_type([
+    display/0,
+    config/0,
+    surface/0,
+    context/0,
+    client_buffer/0,
+    sync/0,
+    image/0
+]).
 -export([
     choose_config/5,
     copy_buffers/3,
@@ -271,6 +280,14 @@
 -define(EGL_GL_TEXTURE_CUBE_MAP_POSITIVE_Z, 16#30B7).
 -define(EGL_GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, 16#30B8).
 -define(EGL_IMAGE_PRESERVED, 16#30D2).
+
+-type display() :: reference().
+-type config() :: reference().
+-type surface() :: reference().
+-type context() :: reference().
+-type client_buffer() :: reference().
+-type sync() :: reference().
+-type image() :: reference().
 
 init() ->
     % XXX: Generated library should be `egl.so` but erlang.mk won't allow that.
