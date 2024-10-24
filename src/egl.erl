@@ -340,6 +340,28 @@ get_current_surface(_A) ->
 get_display(_NativeDisplay) ->
     erlang:nif_error(nif_library_not_loaded).
 
+%%
+%% eglGetError — return error information
+%%
+%% - foo
+%% - bar
+%%
+-spec get_error() ->
+    success |
+    not_initialized |
+    bad_access |
+    bad_alloc |
+    bad_attribute |
+    bad_context |
+    bad_config |
+    bad_current_surface |
+    bad_display |
+    bad_surface |
+    bad_match |
+    bad_parameter |
+    bad_native_pixmap |
+    bad_native_window |
+    context_lost.
 get_error() ->
     erlang:nif_error(nif_library_not_loaded).
 
