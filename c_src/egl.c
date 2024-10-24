@@ -260,9 +260,52 @@ static ERL_NIF_TERM nif_query_context(ErlNifEnv* env, int argc, const ERL_NIF_TE
 
 static ERL_NIF_TERM nif_query_string(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
-    // EGLAPI const char *EGLAPIENTRY eglQueryString (EGLDisplay dpy, EGLint name);
+    EGLDisplay display;
+    ERL_NIF_TERM atom_no_display = enif_make_atom(env, "no_display");
+    if (enif_is_identical(argv[0], atom_no_display)) {
+        display = EGL_NO_DISPLAY;
+    }
+    else {
+        void* display_resource;
+        if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
+            return enif_make_badarg(env);
+        }
+        display = *((EGLDisplay*)display_resource);
+    }
 
-    return enif_make_atom(env, "ok");
+    ERL_NIF_TERM atom_vendor = enif_make_atom(env, "vendor");
+    ERL_NIF_TERM atom_version = enif_make_atom(env, "version");
+    ERL_NIF_TERM atom_api_clients = enif_make_atom(env, "client_apis");
+    ERL_NIF_TERM atom_extensions = enif_make_atom(env, "extensions");
+    EGLint name;
+    if (enif_is_identical(argv[1], atom_api_clients)) {
+        name = EGL_CLIENT_APIS;
+    }
+    else if (enif_is_identical(argv[1], atom_vendor)) {
+        name = EGL_VENDOR;
+    }
+    else if (enif_is_identical(argv[1], atom_version)) {
+        name = EGL_VERSION;
+    }
+    else if (enif_is_identical(argv[1], atom_extensions)) {
+        name = EGL_EXTENSIONS;
+    }
+    else {
+        return enif_make_badarg(env);
+    }
+
+    const char* result = eglQueryString(display, name);
+    if (result == NULL) {
+        return enif_make_atom(env, "not_ok");
+    }
+    else {
+
+        return enif_make_tuple2(
+            env,
+            enif_make_atom(env, "ok"),
+            enif_make_string(env, result, ERL_NIF_LATIN1)
+        );
+    }
 }
 
 static ERL_NIF_TERM nif_query_surface(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
