@@ -224,9 +224,73 @@ static ERL_NIF_TERM nif_copy_buffers(ErlNifEnv* env, int argc, const ERL_NIF_TER
 
 static ERL_NIF_TERM nif_create_context(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
-    // EGLAPI EGLContext EGLAPIENTRY eglCreateContext (EGLDisplay dpy, EGLConfig config, EGLContext share_context, const EGLint *attrib_list);
+    // Third argument is a list of integers that was prepared on the Erlang
+    // side so we just pass it as is to eglCreateContext. We just have
+    // to convert it into a C array and append EGL_NONE to it.
 
-    return enif_make_atom(env, "ok");
+    void* display_resource;
+    if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
+        return enif_make_badarg(env);
+    }
+    EGLDisplay display = *((EGLDisplay*)display_resource);
+
+    void* config_resource;
+    if (!enif_get_resource(env, argv[1], egl_config_resource_type, &config_resource)) {
+        return enif_make_badarg(env);
+    }
+    EGLConfig config = *((EGLConfig*)config_resource);
+
+    EGLContext share_context;
+    if (enif_is_identical(argv[2], enif_make_atom(env, "no_context"))) {
+        share_context = EGL_NO_CONTEXT;
+    }
+    else {
+        void* share_context_resource;
+        if (!enif_get_resource(env, argv[2], egl_context_resource_type, &share_context_resource)) {
+            return enif_make_badarg(env);
+        }
+        share_context = *((EGLContext*)share_context_resource);
+    }
+
+    ERL_NIF_TERM list = argv[3];
+    unsigned int list_length;
+    if (!enif_get_list_length(env, list, &list_length)) {
+        return enif_make_badarg(env);
+    }
+
+    EGLint* attrib_list = (EGLint*)malloc((list_length + 1) * sizeof(EGLint));
+    if (attrib_list == NULL) {
+        // XXX: Not sure what to do in this scenario.
+        return enif_make_atom(env, "error_alloc");
+    }
+
+    ERL_NIF_TERM head, tail;
+    int value;
+    unsigned int i = 0;
+    while (enif_get_list_cell(env, list, &head, &tail)) {
+        if (!enif_get_int(env, head, &value)) {
+            free(attrib_list);
+            return enif_make_badarg(env);
+        }
+        attrib_list[i++] = (EGLint)value;
+        list = tail;
+    }
+    attrib_list[i] = EGL_NONE;
+
+    EGLContext result = eglCreateContext(display, config, share_context, attrib_list);
+    if (result == EGL_NO_CONTEXT) {
+        return not_ok_atom;
+    }
+    else {
+        void* context_resource = enif_alloc_resource(egl_context_resource_type, sizeof(EGLContext));
+        *((EGLContext*)context_resource) = result;
+
+        return enif_make_tuple2(
+            env,
+            enif_make_atom(env, "ok"),
+            enif_make_resource(env, context_resource)
+        );
+    }
 }
 
 static ERL_NIF_TERM nif_create_pbuffer_surface(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
@@ -303,9 +367,25 @@ static ERL_NIF_TERM nif_create_window_surface(ErlNifEnv* env, int argc, const ER
 
 static ERL_NIF_TERM nif_destroy_context(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
-    // EGLAPI EGLBoolean EGLAPIENTRY eglDestroyContext (EGLDisplay dpy, EGLContext ctx);
+    void* display_resource;
+    if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
+        return enif_make_badarg(env);
+    }
+    EGLDisplay display = *((EGLDisplay*)display_resource);
 
-    return enif_make_atom(env, "ok");
+    void* context_resource;
+    if (!enif_get_resource(env, argv[1], egl_context_resource_type, &context_resource)) {
+        return enif_make_badarg(env);
+    }
+    EGLContext context = *((EGLContext*)context_resource);
+
+    EGLBoolean result = eglDestroyContext(display, context);
+    if (result == EGL_TRUE) {
+        return ok_atom;
+    }
+    else {
+        return not_ok_atom;
+    }
 }
 
 static ERL_NIF_TERM nif_destroy_surface(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
@@ -512,9 +592,35 @@ static ERL_NIF_TERM nif_make_current(ErlNifEnv* env, int argc, const ERL_NIF_TER
 
 static ERL_NIF_TERM nif_query_context(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
-    // EGLAPI EGLBoolean EGLAPIENTRY eglQueryContext (EGLDisplay dpy, EGLContext ctx, EGLint attribute, EGLint *value);
+    void* display_resource;
+    if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
+        return enif_make_badarg(env);
+    }
+    EGLDisplay display = *((EGLDisplay*)display_resource);
 
-    return enif_make_atom(env, "ok");
+    void* context_resource;
+    if (!enif_get_resource(env, argv[1], egl_context_resource_type, &context_resource)) {
+        return enif_make_badarg(env);
+    }
+    EGLContext context = *((EGLContext*)context_resource);
+
+    EGLint attribute;
+    if (!enif_get_int(env, argv[2], &attribute)) {
+        return enif_make_badarg(env);
+    }
+
+    EGLint value;
+    EGLBoolean result = eglQueryContext(display, context, attribute, &value);
+    if (result == EGL_FALSE) {
+        return not_ok_atom;
+    }
+    else {
+        return enif_make_tuple2(
+            env,
+            ok_atom,
+            enif_make_int(env, value)
+        );
+    }
 }
 
 static ERL_NIF_TERM nif_query_string(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
@@ -831,7 +937,7 @@ static ErlNifFunc nif_functions[] = {
     // EGL 1.0
     {"choose_config_raw", 2, nif_choose_config},
     {"copy_buffers", 3, nif_copy_buffers},
-    {"create_context", 4, nif_create_context},
+    {"create_context_raw", 4, nif_create_context},
     {"create_pbuffer_surface_raw", 3, nif_create_pbuffer_surface},
     {"create_pixmap_surface", 4, nif_create_pixmap_surface},
     {"create_window_surface", 4, nif_create_window_surface},
@@ -845,7 +951,7 @@ static ErlNifFunc nif_functions[] = {
     {"get_error", 0, nif_get_error},
     {"initialize", 1, nif_initialize},
     {"make_current", 4, nif_make_current},
-    {"query_context", 4, nif_query_context},
+    {"query_context_raw", 4, nif_query_context},
     {"query_string", 2, nif_query_string},
     {"query_surface_raw", 3, nif_query_surface},
     {"swap_buffers", 2, nif_swap_buffers},

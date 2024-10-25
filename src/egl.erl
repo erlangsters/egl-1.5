@@ -37,7 +37,7 @@
     get_error/0,
     initialize/1,
     make_current/4,
-    query_context/4,
+    query_context/3,
     query_string/2,
     query_surface/3,
     swap_buffers/2,
@@ -69,7 +69,7 @@
 -nifs([
     choose_config_raw/2,
     copy_buffers/3,
-    create_context/4,
+    create_context_raw/4,
     create_pbuffer_surface_raw/3,
     create_pixmap_surface/4,
     create_window_surface/4,
@@ -83,7 +83,7 @@
     get_error/0,
     initialize/1,
     make_current/4,
-    query_context/4,
+    query_context_raw/3,
     query_string/2,
     query_surface_raw/3,
     swap_buffers/2,
@@ -396,6 +396,25 @@
     multisample_resolve |
     swap_behavior
 .
+-type context_attribs_list() :: [
+    {context_major_version, pos_integer()} |
+    {context_minor_version, pos_integer()} |
+    {context_opengl_profile_mask, [
+        context_opengl_core_profile_bit | context_opengl_compatibility_profile_bit
+    ]} |
+    {context_opengl_debug, boolean()} |
+    {context_opengl_forward_compatible, boolean()} |
+    {context_opengl_robust_access, boolean()} |
+    {context_opengl_reset_notification_strategy,
+        no_reset_notification | lose_context_on_reset
+    }
+].
+-type context_attrib_get() ::
+    config_id |
+    context_client_type |
+    context_client_version |
+    render_buffer
+.
 
 init() ->
     % XXX: Generated library should be `egl.so` but erlang.mk won't allow that.
@@ -547,7 +566,57 @@ choose_config_raw(_Display, _AttribsList) ->
 copy_buffers(_A, _B, _C) ->
     erlang:nif_error(nif_library_not_loaded).
 
-create_context(_A, _B, _C, _D) ->
+%%
+%% eglCreateContext — create a new EGL rendering context
+%%
+%% - foo
+%% - bar
+%%
+-spec create_context(display(), config(), no_context | context(), context_attribs_list()) ->
+    {ok, context()} | not_ok.
+create_context(Display, Config, ShareContext, AttribsList) ->
+    % We transform the list of attributes into a list of integers so the NIF
+    % implementation is easier to write.
+    AttribsListRaw = lists:foldl(fun
+        ({context_major_version, ContextMajorVersion}, Accumulator) ->
+            Accumulator ++ [?EGL_CONTEXT_MAJOR_VERSION, ContextMajorVersion];
+        ({context_minor_version, ContextMinorVersion}, Accumulator) ->
+            Accumulator ++ [?EGL_CONTEXT_MINOR_VERSION, ContextMinorVersion];
+        % ({context_opengl_profile_mask, ContextOpenGLProfileMask}, Accumulator) ->
+        %     Flags = lists:map(fun
+        %         (context_opengl_core_profile_bit) -> ?EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT;
+        %         (context_opengl_compatibility_profile_bit) -> ?EGL_CONTEXT_OPENGL_COMPATIBILITY_PROFILE_BIT
+        %     end, ContextOpenGLProfileMask),
+        %     Value = lists:foldl(fun(Flag, AccumulatorBis) ->  Flag bor AccumulatorBis end, 0, Flags),
+        %     Accumulator ++ [?EGL_CONTEXT_OPENGL_PROFILE_MASK, Value];
+        ({context_opengl_debug, ContextOpenGLDebug}, Accumulator) ->
+            Value = case ContextOpenGLDebug of
+                true -> ?EGL_TRUE;
+                false -> ?EGL_FALSE
+            end,
+            Accumulator ++ [?EGL_CONTEXT_OPENGL_DEBUG, Value];
+        ({context_opengl_forward_compatible, ContextOpenGLForwardCompatible}, Accumulator) ->
+            Value = case ContextOpenGLForwardCompatible of
+                true -> ?EGL_TRUE;
+                false -> ?EGL_FALSE
+            end,
+            Accumulator ++ [?EGL_CONTEXT_OPENGL_FORWARD_COMPATIBLE, Value];
+        ({context_opengl_robust_access, ContextOpenGLRobustAccess}, Accumulator) ->
+            Value = case ContextOpenGLRobustAccess of
+                true -> ?EGL_TRUE;
+                false -> ?EGL_FALSE
+            end,
+            Accumulator ++ [?EGL_CONTEXT_OPENGL_ROBUST_ACCESS, Value];
+        ({context_opengl_reset_notification_strategy, ContextOpenGLResetNotificationStrategy}, Accumulator) ->
+            Value = case ContextOpenGLResetNotificationStrategy of
+                no_reset_notification -> ?EGL_NO_RESET_NOTIFICATION;
+                lose_context_on_reset -> ?EGL_LOSE_CONTEXT_ON_RESET
+            end,
+            Accumulator ++ [?EGL_CONTEXT_OPENGL_RESET_NOTIFICATION_STRATEGY, Value]
+    end, [], AttribsList),
+    create_context_raw(Display, Config, ShareContext, AttribsListRaw).
+
+create_context_raw(_Display, _Config, _ShareContext, _AttribsList) ->
     erlang:nif_error(nif_library_not_loaded).
 
 %%
@@ -621,7 +690,14 @@ create_pixmap_surface(_A, _B, _C, _D) ->
 create_window_surface(_A, _B, _C, _D) ->
     erlang:nif_error(nif_library_not_loaded).
 
-destroy_context(_A, _B) ->
+%%
+%% eglDestroyContext — destroy an EGL rendering context
+%%
+%% - foo
+%% - bar
+%%
+-spec destroy_context(display(), context()) -> ok | not_ok.
+destroy_context(_Display, _Context) ->
     erlang:nif_error(nif_library_not_loaded).
 
 %%
@@ -857,7 +933,48 @@ initialize(_Display) ->
 make_current(_A, _B, _C, _D) ->
     erlang:nif_error(nif_library_not_loaded).
 
-query_context(_A, _B, _C, _D) ->
+%%
+%% eglQueryContext — return EGL rendering context information
+%%
+%% - foo
+%% - bar
+%%
+-spec query_context(display(), context(), context_attrib_get()) ->
+    {ok, term()} | not_ok.
+query_context(Display, Context, Attribute) ->
+    AttributeRaw = case Attribute of
+        config_id -> ?EGL_CONFIG_ID;
+        context_client_type -> ?EGL_CONTEXT_CLIENT_TYPE;
+        context_client_version -> ?EGL_CONTEXT_CLIENT_VERSION;
+        render_buffer -> ?EGL_RENDER_BUFFER
+    end,
+    case query_context_raw(Display, Context, AttributeRaw) of
+        {ok, ValueRaw} ->
+            Value = case Attribute of
+                config_id ->
+                    ValueRaw;
+                context_client_type ->
+                    case ValueRaw of
+                        ?EGL_OPENGL_API -> opengl_api;
+                        ?EGL_OPENGL_ES_API -> opengl_es_api;
+                        ?EGL_OPENVG_API -> openvg_api
+                    end;
+                context_client_version ->
+                    % XXX: Double-check this.
+                    ValueRaw;
+                render_buffer ->
+                    case ValueRaw of
+                        ?EGL_BACK_BUFFER -> back_buffer;
+                        ?EGL_SINGLE_BUFFER -> single_buffer;
+                        ?EGL_NONE -> none
+                    end
+            end,
+            {ok, Value};
+        not_ok ->
+            not_ok
+    end.
+
+query_context_raw(_Display, _Context, _Attribute) ->
     erlang:nif_error(nif_library_not_loaded).
 
 %%
