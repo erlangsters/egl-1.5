@@ -16,10 +16,12 @@
     context/0,
     client_buffer/0,
     sync/0,
-    image/0
+    image/0,
+    config_attrib/0,
+    config_attribs_list/0
 ]).
 -export([
-    choose_config/5,
+    choose_config/2,
     copy_buffers/3,
     create_context/4,
     create_pbuffer_surface/3,
@@ -27,8 +29,8 @@
     create_window_surface/4,
     destroy_context/2,
     destroy_surface/2,
-    get_config_attrib/4,
-    get_configs/4,
+    get_config_attrib/3,
+    get_configs/1,
     get_current_display/0,
     get_current_surface/1,
     get_display/1,
@@ -65,7 +67,7 @@
 ]).
 
 -nifs([
-    choose_config/5,
+    choose_config_raw/2,
     copy_buffers/3,
     create_context/4,
     create_pbuffer_surface/3,
@@ -73,8 +75,8 @@
     create_window_surface/4,
     destroy_context/2,
     destroy_surface/2,
-    get_config_attrib/4,
-    get_configs/4,
+    get_config_attrib_raw/3,
+    get_configs/1,
     get_current_display/0,
     get_current_surface/1,
     get_display/1,
@@ -290,11 +292,220 @@
 -type sync() :: reference().
 -type image() :: reference().
 
+-type config_attrib() ::
+    alpha_size |
+    alpha_mask_size |
+    bind_to_texture_rgb |
+    bind_to_texture_rgba |
+    blue_size |
+    buffer_size |
+    color_buffer_type |
+    config_caveat |
+    config_id |
+    conformant |
+    depth_size |
+    green_size |
+    level |
+    luminance_size |
+    max_pbuffer_width |
+    max_pbuffer_height |
+    max_pbuffer_pixels |
+    max_swap_interval |
+    min_swap_interval |
+    native_renderable |
+    native_visual_id |
+    native_visual_type |
+    red_size |
+    renderable_type |
+    sample_buffers |
+    samples |
+    stencil_size |
+    surface_type |
+    transparent_type |
+    transparent_red_value |
+    transparent_green_value |
+    transparent_blue_value
+.
+
+-type config_attribs_list() :: [
+    {alpha_mask_size, pos_integer()} |
+    {alpha_size, pos_integer()} |
+    {bind_to_texture_rgb, dont_care | boolean()} |
+    {bind_to_texture_rgba, dont_care | boolean()} |
+    {blue_size, pos_integer()} |
+    {buffer_size, pos_integer()} |
+    {color_buffer_type, rgb_buffer | luminance_buffer} |
+    {config_caveat, dont_care | none | slow_config} |
+    {config_id, integer()} |
+    {conformant, [opengl_bit | opengl_es_bit | opengl_es2_bit | openvg_bit]} |
+    {depth_size, pos_integer()} |
+    {green_size, pos_integer()} |
+    {level, integer()} |
+    {luminance_size, pos_integer()} |
+    {native_renderable, dont_care | boolean()} |
+    {max_swap_interval, dont_care | integer()} |
+    {min_swap_interval, dont_care | integer()} |
+    {red_size, pos_integer()} |
+    {sample_buffers, pos_integer()} |
+    {samples, pos_integer()} |
+    {stencil_size, pos_integer()} |
+    {renderable_type, [opengl_bit | opengl_es_bit | opengl_es2_bit | openvg_bit]} |
+    {surface_type, [
+        multisample_resolve_box_bit | pbuffer_bit | pixmat_bit |
+        swap_behavior_preserved_bit | vg_alpha_format_pre_bit |
+        vg_colorspace_linear_bit | window_bit
+    ]} |
+    {transparent_type, none | transparent_rgb} |
+    {transparent_red_value, dont_care | pos_integer()} |
+    {transparent_green_value, dont_care | pos_integer()} |
+    {transparent_blue_value, dont_care | pos_integer()}
+].
+
 init() ->
     % XXX: Generated library should be `egl.so` but erlang.mk won't allow that.
     ok = erlang:load_nif("./priv/egl_1_5", 0).
 
-choose_config(_A, _B, _C, _D, _E) ->
+%%
+%% eglChooseConfig — return a list of EGL frame buffer configurations that match specified attributes
+%%
+%% - foo
+%% - bar
+%%
+-spec choose_config(display(), config_attribs_list()) ->
+    {ok, [config()]} | not_ok.
+choose_config(Display, AttribsList) ->
+    % We transform the list of attributes into a list of integers so the NIF
+    % implementation is easier to write.
+    AttribsListRaw = lists:foldl(fun
+        ({alpha_mask_size, AlphaMaskSize}, Accumulator) ->
+            Accumulator ++ [?EGL_ALPHA_MASK_SIZE, AlphaMaskSize];
+        ({alpha_size, AlphaSize}, Accumulator) ->
+            Accumulator ++ [?EGL_ALPHA_SIZE, AlphaSize];
+        ({bind_to_texture_rgb, BindToTextureRgb}, Accumulator) ->
+            Value = case BindToTextureRgb of
+                dont_care -> ?EGL_DONT_CARE;
+                BindToTextureRgb_ -> BindToTextureRgb_
+            end,
+            Accumulator ++ [?EGL_BIND_TO_TEXTURE_RGB, Value];
+        ({bind_to_texture_rgba, BindToTextureRgba}, Accumulator) ->
+            Value = case BindToTextureRgba of
+                dont_care -> ?EGL_DONT_CARE;
+                BindToTextureRgba_ -> BindToTextureRgba_
+            end,
+            Accumulator ++ [?EGL_BIND_TO_TEXTURE_RGBA, Value];
+        ({blue_size, BlueSize}, Accumulator) ->
+            Accumulator ++ [?EGL_BLUE_SIZE, BlueSize];
+        ({buffer_size, BufferSize}, Accumulator) ->
+            Accumulator ++ [?EGL_BUFFER_SIZE, BufferSize];
+
+        ({color_buffer_type, ColorBufferType}, Accumulator) ->
+            Value = case ColorBufferType of
+                rgb_buffer -> ?EGL_RGB_BUFFER;
+                luminance_buffer -> ?EGL_LUMINANCE_BUFFER
+            end,
+            Accumulator ++ [?EGL_COLOR_BUFFER_TYPE, Value];
+        ({config_caveat, ConfigCaveat}, Accumulator) ->
+            Value = case ConfigCaveat of
+                dont_care -> ?EGL_DONT_CARE;
+                none -> ?EGL_NONE;
+                slow_config -> ?EGL_SLOW_CONFIG
+            end,
+            Accumulator ++ [?EGL_CONFIG_CAVEAT, Value];
+        ({config_id, ConfigId}, Accumulator) ->
+            Accumulator ++ [?EGL_CONFIG_ID, ConfigId];
+        ({conformant, Conformant}, Accumulator) ->
+            Flags = lists:map(fun
+                (opengl_bit) -> ?EGL_OPENGL_BIT;
+                (opengl_es_bit) -> ?EGL_OPENGL_ES_BIT;
+                (opengl_es2_bit) -> ?EGL_OPENGL_ES2_BIT;
+                (openvg_bit) -> ?EGL_OPENVG_BIT
+            end, Conformant),
+            Value = lists:foldl(fun(Flag, AccumulatorBis) ->  Flag bor AccumulatorBis end, 0, Flags),
+            Accumulator ++ [?EGL_CONFORMANT, Value];
+        ({depth_size, DepthSize}, Accumulator) ->
+            Accumulator ++ [?EGL_DEPTH_SIZE, DepthSize];
+        ({green_size, GreenSize}, Accumulator) ->
+            Accumulator ++ [?EGL_GREEN_SIZE, GreenSize];
+        ({level, Level}, Accumulator) ->
+            Accumulator ++ [?EGL_LEVEL, Level];
+        ({luminance_size, LuminanceSize}, Accumulator) ->
+            Accumulator ++ [?EGL_LUMINANCE_SIZE, LuminanceSize];
+        ({native_renderable, NativeRenderable}, Accumulator) ->
+            Value = case NativeRenderable of
+                dont_care -> ?EGL_DONT_CARE;
+                NativeRenderable_ -> NativeRenderable_
+            end,
+            Accumulator ++ [?EGL_NATIVE_RENDERABLE, Value];
+        ({max_swap_interval, MaxSwapInterval}, Accumulator) ->
+            Value = case MaxSwapInterval of
+                dont_care -> ?EGL_DONT_CARE;
+                MaxSwapInterval_ -> MaxSwapInterval_
+            end,
+            Accumulator ++ [?EGL_MAX_SWAP_INTERVAL, Value];
+        ({min_swap_interval, MinSwapInterval}, Accumulator) ->
+            Value = case MinSwapInterval of
+                dont_care -> ?EGL_DONT_CARE;
+                MinSwapInterval_ -> MinSwapInterval_
+            end,
+            Accumulator ++ [?EGL_MIN_SWAP_INTERVAL, Value];
+
+        ({red_size, RedSize}, Accumulator) ->
+            Accumulator ++ [?EGL_RED_SIZE, RedSize];
+        ({sample_buffers, SampleBuffers}, Accumulator) ->
+            Accumulator ++ [?EGL_SAMPLE_BUFFERS, SampleBuffers];
+        ({samples, Samples}, Accumulator) ->
+            Accumulator ++ [?EGL_SAMPLES, Samples];
+        ({stencil_size, StencilSize}, Accumulator) ->
+            Accumulator ++ [?EGL_STENCIL_SIZE, StencilSize];
+        ({renderable_type, RenderableType}, Accumulator) ->
+            Flags = lists:map(fun
+                (opengl_bit) -> ?EGL_OPENGL_BIT;
+                (opengl_es_bit) -> ?EGL_OPENGL_ES_BIT;
+                (opengl_es2_bit) -> ?EGL_OPENGL_ES2_BIT;
+                (openvg_bit) -> ?EGL_OPENVG_BIT
+            end, RenderableType),
+            Value = lists:foldl(fun(Flag, AccumulatorBis) ->  Flag bor AccumulatorBis end, 0, Flags),
+            Accumulator ++ [?EGL_RENDERABLE_TYPE, Value];
+        ({surface_type, SurfaceType}, Accumulator) ->
+            Flags = lists:map(fun
+                (multisample_resolve_box_bit) -> ?EGL_MULTISAMPLE_RESOLVE_BOX_BIT;
+                (pbuffer_bit) -> ?EGL_PBUFFER_BIT;
+                (pixmat_bit) -> ?EGL_PIXMAP_BIT;
+                (swap_behavior_preserved_bit) -> ?EGL_SWAP_BEHAVIOR_PRESERVED_BIT;
+                (vg_alpha_format_pre_bit) -> ?EGL_VG_ALPHA_FORMAT_PRE_BIT;
+                (vg_colorspace_linear_bit) -> ?EGL_VG_COLORSPACE_LINEAR_BIT;
+                (window_bit) -> ?EGL_WINDOW_BIT
+            end, SurfaceType),
+            Value = lists:foldl(fun(Flag, AccumulatorBis) ->  Flag bor AccumulatorBis end, 0, Flags),
+            Accumulator ++ [?EGL_SURFACE_TYPE, Value];
+        ({transparent_type, TransparentType}, Accumulator) ->
+            Value = case TransparentType of
+                none -> ?EGL_NONE;
+                transparent_rgb -> ?EGL_TRANSPARENT_RGB
+            end,
+            Accumulator ++ [?EGL_TRANSPARENT_TYPE, Value];
+        ({transparent_red_value, TransparentRedValue}, Accumulator) ->
+            Value = case TransparentRedValue of
+                dont_care -> ?EGL_DONT_CARE;
+                TransparentRedValue_ -> TransparentRedValue_
+            end,
+            Accumulator ++ [?EGL_TRANSPARENT_RED_VALUE, Value];
+        ({transparent_green_value, TransparentGreenValue}, Accumulator) ->
+            Value = case TransparentGreenValue of
+                dont_care -> ?EGL_DONT_CARE;
+                TransparentGreenValue_ -> TransparentGreenValue_
+            end,
+            Accumulator ++ [?EGL_TRANSPARENT_GREEN_VALUE, Value];
+        ({transparent_blue_value, TransparentBlueValue}, Accumulator) ->
+            Value = case TransparentBlueValue of
+                dont_care -> ?EGL_DONT_CARE;
+                TransparentBlueValue_ -> TransparentBlueValue_
+            end,
+            Accumulator ++ [?EGL_TRANSPARENT_BLUE_VALUE, Value]
+    end, [], AttribsList),
+    choose_config_raw(Display, AttribsListRaw).
+
+choose_config_raw(_Display, _AttribsList) ->
     erlang:nif_error(nif_library_not_loaded).
 
 copy_buffers(_A, _B, _C) ->
@@ -318,10 +529,172 @@ destroy_context(_A, _B) ->
 destroy_surface(_A, _B) ->
     erlang:nif_error(nif_library_not_loaded).
 
-get_config_attrib(_A, _B, _C, _D) ->
+%%
+%% eglGetConfigAttrib — return information about an EGL frame buffer configuration
+%%
+%% - foo
+%% - bar
+%%
+-spec get_config_attrib(display(), config(), config_attrib()) ->
+    {ok, term()} | not_ok.
+get_config_attrib(Display, Config, Attribute) ->
+    % We transform the attribute into an integer so the NIF implementation is
+    % easier to write. Also, the NIF implementation purposely returns the raw
+    % integer value so we can transform it here instead.
+    AttributeRaw = case Attribute of
+        alpha_size -> ?EGL_ALPHA_SIZE;
+        alpha_mask_size -> ?EGL_ALPHA_MASK_SIZE;
+        bind_to_texture_rgb -> ?EGL_BIND_TO_TEXTURE_RGB;
+        bind_to_texture_rgba -> ?EGL_BIND_TO_TEXTURE_RGBA;
+        blue_size -> ?EGL_BLUE_SIZE;
+        buffer_size -> ?EGL_BUFFER_SIZE;
+        color_buffer_type -> ?EGL_COLOR_BUFFER_TYPE;
+        config_caveat -> ?EGL_CONFIG_CAVEAT;
+        config_id -> ?EGL_CONFIG_ID;
+        conformant -> ?EGL_CONFORMANT;
+        depth_size -> ?EGL_DEPTH_SIZE;
+        green_size -> ?EGL_GREEN_SIZE;
+        level -> ?EGL_LEVEL;
+        luminance_size -> ?EGL_LUMINANCE_SIZE;
+        max_pbuffer_width -> ?EGL_MAX_PBUFFER_WIDTH;
+        max_pbuffer_height -> ?EGL_MAX_PBUFFER_HEIGHT;
+        max_pbuffer_pixels -> ?EGL_MAX_PBUFFER_PIXELS;
+        max_swap_interval -> ?EGL_MAX_SWAP_INTERVAL;
+        min_swap_interval -> ?EGL_MIN_SWAP_INTERVAL;
+        native_renderable -> ?EGL_NATIVE_RENDERABLE;
+        native_visual_id -> ?EGL_NATIVE_VISUAL_ID;
+        native_visual_type -> ?EGL_NATIVE_VISUAL_TYPE;
+        red_size -> ?EGL_RED_SIZE;
+        renderable_type -> ?EGL_RENDERABLE_TYPE;
+        sample_buffers -> ?EGL_SAMPLE_BUFFERS;
+        samples -> ?EGL_SAMPLES;
+        stencil_size -> ?EGL_STENCIL_SIZE;
+        surface_type -> ?EGL_SURFACE_TYPE;
+        transparent_type -> ?EGL_TRANSPARENT_TYPE;
+        transparent_red_value -> ?EGL_TRANSPARENT_RED_VALUE;
+        transparent_green_value -> ?EGL_TRANSPARENT_GREEN_VALUE;
+        transparent_blue_value -> ?EGL_TRANSPARENT_BLUE_VALUE
+    end,
+    case get_config_attrib_raw(Display, Config, AttributeRaw) of
+        {ok, ValueRaw} ->
+            Value = case Attribute of
+                alpha_size ->
+                    ValueRaw;
+                alpha_mask_size ->
+                    ValueRaw;
+                bind_to_texture_rgb ->
+                    case ValueRaw of
+                        ?EGL_TRUE -> true;
+                        ?EGL_FALSE -> false
+                    end;
+                bind_to_texture_rgba ->
+                    case ValueRaw of
+                        ?EGL_TRUE -> true;
+                        ?EGL_FALSE -> false
+                    end;
+                blue_size ->
+                    ValueRaw;
+                buffer_size ->
+                    ValueRaw;
+                color_buffer_type ->
+                    case ValueRaw of
+                        ?EGL_RGB_BUFFER -> rgb_buffer;
+                        ?EGL_LUMINANCE_BUFFER -> luminance_buffer
+                    end;
+                config_caveat ->
+                    case ValueRaw of
+                        ?EGL_NONE -> none;
+                        ?EGL_SLOW_CONFIG -> slow_config
+                    end;
+                config_id ->
+                    ValueRaw;
+                conformant ->
+                    to_bitmask(ValueRaw, #{
+                        ?EGL_OPENGL_BIT => opengl_bit,
+                        ?EGL_OPENGL_ES_BIT => opengl_es_bit,
+                        ?EGL_OPENGL_ES2_BIT => opengl_es2_bit,
+                        ?EGL_OPENVG_BIT => openvg_bit
+                    });
+                depth_size ->
+                    ValueRaw;
+                green_size ->
+                    ValueRaw;
+                level ->
+                    ValueRaw;
+                luminance_size ->
+                    ValueRaw;
+                max_pbuffer_width ->
+                    ValueRaw;
+                max_pbuffer_height ->
+                    ValueRaw;
+                max_pbuffer_pixels ->
+                    ValueRaw;
+                max_swap_interval ->
+                    ValueRaw;
+                min_swap_interval ->
+                    ValueRaw;
+                native_renderable ->
+                    case ValueRaw of
+                        ?EGL_TRUE -> true;
+                        ?EGL_FALSE -> false
+                    end;
+                native_visual_id ->
+                    ValueRaw;
+                native_visual_type ->
+                    ValueRaw;
+                red_size ->
+                    ValueRaw;
+                renderable_type ->
+                    to_bitmask(ValueRaw, #{
+                        ?EGL_OPENGL_BIT => opengl_bit,
+                        ?EGL_OPENGL_ES_BIT => opengl_es_bit,
+                        ?EGL_OPENGL_ES2_BIT => opengl_es2_bit,
+                        ?EGL_OPENVG_BIT => openvg_bit
+                    });
+                sample_buffers ->
+                    ValueRaw;
+                samples ->
+                    ValueRaw;
+                stencil_size ->
+                    ValueRaw;
+                surface_type ->
+                    to_bitmask(ValueRaw, #{
+                        ?EGL_MULTISAMPLE_RESOLVE_BOX_BIT => multisample_resolve_box_bit,
+                        ?EGL_PBUFFER_BIT => pbuffer_bit,
+                        ?EGL_PIXMAP_BIT => pixmat_bit,
+                        ?EGL_SWAP_BEHAVIOR_PRESERVED_BIT => swap_behavior_preserved_bit,
+                        ?EGL_VG_ALPHA_FORMAT_PRE_BIT => vg_alpha_format_pre_bit,
+                        ?EGL_VG_COLORSPACE_LINEAR_BIT => vg_colorspace_linear_bit,
+                        ?EGL_WINDOW_BIT => window_bit
+                    });
+                transparent_type ->
+                    case ValueRaw of
+                        ?EGL_NONE -> none;
+                        ?EGL_TRANSPARENT_RGB -> transparent_rgb
+                    end;
+                transparent_red_value ->
+                    ValueRaw;
+                transparent_green_value ->
+                    ValueRaw;
+                transparent_blue_value ->
+                    ValueRaw
+            end,
+            {ok, Value};
+        not_ok ->
+            not_ok
+    end.
+
+get_config_attrib_raw(_Display, _Config, _Attribute) ->
     erlang:nif_error(nif_library_not_loaded).
 
-get_configs(_A, _B, _C, _D) ->
+%%
+%% eglGetConfigs — return a list of all EGL frame buffer configurations for a display
+%%
+%% - foo
+%% - bar
+%%
+-spec get_configs(display()) -> {ok, [config()]} | not_ok.
+get_configs(_Display) ->
     erlang:nif_error(nif_library_not_loaded).
 
 get_current_display() ->
@@ -476,3 +849,13 @@ create_platform_pixmap_surface(_A, _B, _C, _D) ->
 
 wait_sync(_A, _B, _C) ->
     erlang:nif_error(nif_library_not_loaded).
+
+to_bitmask(Value, Flags) ->
+    maps:fold(fun(Left, Right, Accumulator) ->
+        case (Value band Left) =/= 0 of
+            true ->
+                [Right | Accumulator];
+            false ->
+                Accumulator
+        end
+    end, [], Flags).

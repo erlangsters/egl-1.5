@@ -137,9 +137,78 @@ static int nif_module_unload(ErlNifEnv* caller_env, void** priv_data)
 
 static ERL_NIF_TERM nif_choose_config(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
-    // EGLAPI EGLBoolean EGLAPIENTRY eglChooseConfig (EGLDisplay dpy, const EGLint *attrib_list, EGLConfig *configs, EGLint config_size, EGLint *num_config);
+    // Second argument is a list of integers that was prepared on the Erlang
+    // side so we just pass it as is to eglChooseConfig. We just have to
+    // convert it into a C array and append EGL_NONE to it.
 
-    return enif_make_atom(env, "ok");
+    void* display_resource;
+    if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
+        return enif_make_badarg(env);
+    }
+    EGLDisplay display = *((EGLDisplay*)display_resource);
+
+    ERL_NIF_TERM list = argv[1];
+    unsigned int list_length;
+    if (!enif_get_list_length(env, list, &list_length)) {
+        return enif_make_badarg(env);
+    }
+
+    EGLint* attrib_list = (EGLint*)malloc((list_length + 1) * sizeof(EGLint));
+    if (attrib_list == NULL) {
+        // XXX: Not sure what to do in this scenario.
+        return enif_make_atom(env, "error_alloc");
+    }
+
+    ERL_NIF_TERM head, tail;
+    int value;
+    unsigned int i = 0;
+    while (enif_get_list_cell(env, list, &head, &tail)) {
+        if (!enif_get_int(env, head, &value)) {
+            free(attrib_list);
+            return enif_make_badarg(env);
+        }
+        attrib_list[i++] = (EGLint)value;
+        list = tail;
+    }
+    attrib_list[i] = EGL_NONE;
+
+    EGLint num_configs;
+    EGLBoolean result = eglChooseConfig(display, attrib_list, NULL, 0, &num_configs);
+    if (result == EGL_FALSE) {
+        return not_ok_atom;
+    }
+    else {
+        EGLConfig* configs = (EGLConfig*)malloc(num_configs * sizeof(EGLConfig));
+        if (configs == NULL) {
+            // XXX: What should we do here ?
+            return enif_make_atom(env, "error_alloc");
+        }
+        result = eglChooseConfig(display, attrib_list, configs, num_configs, &num_configs);
+
+        if (result == EGL_FALSE) {
+            free(attrib_list);
+            free(configs);
+            return not_ok_atom;
+        }
+        else {
+            ERL_NIF_TERM config_list = enif_make_list(env, 0);
+            for (EGLint i = 0; i < num_configs; i++) {
+                void* config_resource = enif_alloc_resource(egl_config_resource_type, sizeof(EGLConfig));
+                *((EGLConfig*)config_resource) = configs[i];
+                ERL_NIF_TERM config_term = enif_make_resource(env, config_resource);
+                config_list = enif_make_list_cell(env, config_term, config_list);
+            }
+
+            free(attrib_list);
+            free(configs);
+
+            return enif_make_tuple2(
+                env,
+                enif_make_atom(env, "ok"),
+                config_list
+            );
+        }
+    }
 }
 
 static ERL_NIF_TERM nif_copy_buffers(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
@@ -193,16 +262,82 @@ static ERL_NIF_TERM nif_destroy_surface(ErlNifEnv* env, int argc, const ERL_NIF_
 
 static ERL_NIF_TERM nif_get_config_attrib(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
-    // EGLAPI EGLBoolean EGLAPIENTRY eglGetConfigAttrib (EGLDisplay dpy, EGLConfig config, EGLint attribute, EGLint *value);
+    void* display_resource;
+    if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
+        return enif_make_badarg(env);
+    }
+    EGLDisplay display = *((EGLDisplay*)display_resource);
+
+    void* config_resource;
+    if (!enif_get_resource(env, argv[1], egl_config_resource_type, &config_resource)) {
+        return enif_make_badarg(env);
+    }
+    EGLConfig config = *((EGLConfig*)config_resource);
+
+    EGLint attribute;
+    if (!enif_get_int(env, argv[2], &attribute)) {
+        return enif_make_badarg(env);
+    }
+
+    EGLint value;
+    EGLBoolean result = eglGetConfigAttrib(display, config, attribute, &value);
+    if (result == EGL_FALSE) {
+        return not_ok_atom;
+    }
+    else {
+        return enif_make_tuple2(
+            env,
+            ok_atom,
+            enif_make_int(env, value)
+        );
+    }
 
     return enif_make_atom(env, "ok");
 }
 
 static ERL_NIF_TERM nif_get_configs(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
-    // EGLAPI EGLBoolean EGLAPIENTRY eglGetConfigs (EGLDisplay dpy, EGLConfig *configs, EGLint config_size, EGLint *num_config);
+    void* display_resource;
+    if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
+        return enif_make_badarg(env);
+    }
+    EGLDisplay display = *((EGLDisplay*)display_resource);
 
-    return enif_make_atom(env, "ok");
+    EGLint num_configs;
+    EGLBoolean result = eglGetConfigs(display, NULL, 0, &num_configs);
+    if (result == EGL_FALSE) {
+        return not_ok_atom;
+    }
+    else {
+        EGLConfig* configs = (EGLConfig*)malloc(num_configs * sizeof(EGLConfig));
+        if (configs == NULL) {
+            // XXX: What should we do here ?
+            return enif_make_atom(env, "error_alloc");
+        }
+        result = eglGetConfigs(display, configs, num_configs, &num_configs);
+
+        if (result == EGL_FALSE) {
+            free(configs);
+            return not_ok_atom;
+        }
+        else {
+            ERL_NIF_TERM config_list = enif_make_list(env, 0);
+            for (EGLint i = 0; i < num_configs; i++) {
+                void* config_resource = enif_alloc_resource(egl_config_resource_type, sizeof(EGLConfig));
+                *((EGLConfig*)config_resource) = configs[i];
+                ERL_NIF_TERM config_term = enif_make_resource(env, config_resource);
+                config_list = enif_make_list_cell(env, config_term, config_list);
+            }
+
+            free(configs);
+
+            return enif_make_tuple2(
+                env,
+                enif_make_atom(env, "ok"),
+                config_list
+            );
+        }
+    }
 }
 
 static ERL_NIF_TERM nif_get_current_display(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
@@ -543,7 +678,7 @@ static ERL_NIF_TERM nif_wait_sync(ErlNifEnv* env, int argc, const ERL_NIF_TERM a
 
 static ErlNifFunc nif_functions[] = {
     // EGL 1.0
-    {"choose_config", 5, nif_choose_config},
+    {"choose_config_raw", 2, nif_choose_config},
     {"copy_buffers", 3, nif_copy_buffers},
     {"create_context", 4, nif_create_context},
     {"create_pbuffer_surface", 3, nif_create_pbuffer_surface},
@@ -551,8 +686,8 @@ static ErlNifFunc nif_functions[] = {
     {"create_window_surface", 4, nif_create_window_surface},
     {"destroy_context", 2, nif_destroy_context},
     {"destroy_surface", 2, nif_destroy_surface},
-    {"get_config_attrib", 4, nif_get_config_attrib},
-    {"get_configs", 4, nif_get_configs},
+    {"get_config_attrib_raw", 3, nif_get_config_attrib},
+    {"get_configs", 1, nif_get_configs},
     {"get_current_display", 0, nif_get_current_display},
     {"get_current_surface", 1, nif_get_current_surface},
     {"get_display", 1, nif_get_display},
