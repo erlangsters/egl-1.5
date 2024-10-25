@@ -94,8 +94,8 @@
     release_tex_image/3,
     surface_attrib_raw/4,
     swap_interval/2,
-    bind_api/1,
-    query_api/0,
+    bind_api_raw/1,
+    query_api_raw/0,
     create_pbuffer_from_client_buffer/5,
     release_thread/0,
     wait_client/0,
@@ -1048,10 +1048,41 @@ surface_attrib_raw(_Display, _Surface, _Attribute, _Value) ->
 swap_interval(_A, _B) ->
     erlang:nif_error(nif_library_not_loaded).
 
-bind_api(_A) ->
+%%
+%% eglBindAPI — Set the current rendering API
+%%
+%% - foo
+%% - bar
+%%
+-spec bind_api(opengl_api | opengl_es_api | openvg_api) -> ok | not_ok.
+bind_api(Api) ->
+    ApiRaw = case Api of
+        opengl_api -> ?EGL_OPENGL_API;
+        opengl_es_api -> ?EGL_OPENGL_ES_API;
+        openvg_api -> ?EGL_OPENVG_API
+    end,
+    bind_api_raw(ApiRaw).
+
+bind_api_raw(_Api) ->
     erlang:nif_error(nif_library_not_loaded).
 
+%%
+%% eglQueryAPI — Query the current rendering API
+%%
+%% - foo
+%% - bar
+%%
+-spec query_api() -> opengl_api | opengl_es_api | openvg_api | none.
 query_api() ->
+    ApiRaw = query_api_raw(),
+    case ApiRaw of
+        ?EGL_OPENGL_API -> opengl_api;
+        ?EGL_OPENGL_ES_API -> opengl_es_api;
+        ?EGL_OPENVG_API -> openvg_api;
+        ?EGL_NONE -> none
+    end.
+
+query_api_raw() ->
     erlang:nif_error(nif_library_not_loaded).
 
 create_pbuffer_from_client_buffer(_A, _B, _C, _D, _E) ->

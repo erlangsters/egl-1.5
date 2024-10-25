@@ -701,16 +701,24 @@ static ERL_NIF_TERM nif_swap_interval(ErlNifEnv* env, int argc, const ERL_NIF_TE
 
 static ERL_NIF_TERM nif_bind_api(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
-    // EGLAPI EGLBoolean EGLAPIENTRY eglBindAPI (EGLenum api);
+    EGLenum api;
+    if (!enif_get_int(env, argv[0], &api)) {
+        return enif_make_badarg(env);
+    }
 
-    return enif_make_atom(env, "ok");
+    EGLBoolean result = eglBindAPI(api);
+    if (result == EGL_TRUE) {
+        return ok_atom;
+    }
+    else {
+        return not_ok_atom;
+    }
 }
 
 static ERL_NIF_TERM nif_query_api(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
-    // EGLAPI EGLenum EGLAPIENTRY eglQueryAPI (void);
-
-    return enif_make_atom(env, "ok");
+    EGLenum result = eglQueryAPI();
+    return enif_make_int(env, result);
 }
 
 static ERL_NIF_TERM nif_create_pbuffer_from_client_buffer(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
@@ -850,8 +858,8 @@ static ErlNifFunc nif_functions[] = {
     {"surface_attrib_raw", 4, nif_surface_attrib},
     {"swap_interval", 2, nif_swap_interval},
     // EGL 1.2
-    {"bind_api", 1, nif_bind_api},
-    {"query_api", 0, nif_query_api},
+    {"bind_api_raw", 1, nif_bind_api},
+    {"query_api_raw", 0, nif_query_api},
     {"create_pbuffer_from_client_buffer", 5, nif_create_pbuffer_from_client_buffer},
     {"release_thread", 0, nif_release_thread},
     {"wait_client", 0, nif_wait_client},
