@@ -930,7 +930,19 @@ get_error() ->
 initialize(_Display) ->
     erlang:nif_error(nif_library_not_loaded).
 
-make_current(_A, _B, _C, _D) ->
+%%
+%% eglMakeCurrent — attach an EGL rendering context to EGL surfaces
+%%
+%% - foo
+%% - bar
+%%
+-spec make_current(
+    display(),
+    no_surface | surface(),
+    no_surface | surface(),
+    no_context | context()
+) -> ok | not_ok.
+make_current(_Display, _Draw, _Read, _Context) ->
     erlang:nif_error(nif_library_not_loaded).
 
 %%
