@@ -769,9 +769,25 @@ static ERL_NIF_TERM nif_query_surface(ErlNifEnv* env, int argc, const ERL_NIF_TE
 
 static ERL_NIF_TERM nif_swap_buffers(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
-    // EGLAPI EGLBoolean EGLAPIENTRY eglSwapBuffers (EGLDisplay dpy, EGLSurface surface);
+    void* display_resource;
+    if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
+        return enif_make_badarg(env);
+    }
+    EGLDisplay display = *((EGLDisplay*)display_resource);
 
-    return enif_make_atom(env, "ok");
+    void* surface_resource;
+    if (!enif_get_resource(env, argv[1], egl_surface_resource_type, &surface_resource)) {
+        return enif_make_badarg(env);
+    }
+    EGLSurface surface = *((EGLSurface*)surface_resource);
+
+    EGLBoolean result = eglSwapBuffers(display, surface);
+    if (result == EGL_TRUE) {
+        return ok_atom;
+    }
+    else {
+        return not_ok_atom;
+    }
 }
 
 static ERL_NIF_TERM nif_terminate(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
@@ -866,9 +882,24 @@ static ERL_NIF_TERM nif_surface_attrib(ErlNifEnv* env, int argc, const ERL_NIF_T
 
 static ERL_NIF_TERM nif_swap_interval(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
-    // EGLAPI EGLBoolean EGLAPIENTRY eglSwapInterval (EGLDisplay dpy, EGLint interval);
+    void* display_resource;
+    if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
+        return enif_make_badarg(env);
+    }
+    EGLDisplay display = *((EGLDisplay*)display_resource);
 
-    return enif_make_atom(env, "ok");
+    EGLint interval;
+    if (!enif_get_int(env, argv[1], &interval)) {
+        return enif_make_badarg(env);
+    }
+
+    EGLBoolean result = eglSwapInterval(display, interval);
+    if (result == EGL_TRUE) {
+        return ok_atom;
+    }
+    else {
+        return not_ok_atom;
+    }
 }
 
 static ERL_NIF_TERM nif_bind_api(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
