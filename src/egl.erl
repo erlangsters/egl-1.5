@@ -811,6 +811,13 @@ query_api() ->
 create_pbuffer_from_client_buffer(_A, _B, _C, _D, _E) ->
     erlang:nif_error(nif_library_not_loaded).
 
+%%
+%% eglReleaseThread — Release EGL per-thread state
+%%
+%% - foo
+%% - bar
+%%
+-spec release_thread() -> ok | not_ok.
 release_thread() ->
     erlang:nif_error(nif_library_not_loaded).
 

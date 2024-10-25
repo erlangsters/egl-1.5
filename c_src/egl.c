@@ -587,9 +587,13 @@ static ERL_NIF_TERM nif_create_pbuffer_from_client_buffer(ErlNifEnv* env, int ar
 
 static ERL_NIF_TERM nif_release_thread(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
-    // EGLAPI EGLBoolean EGLAPIENTRY eglReleaseThread (void);
-
-    return enif_make_atom(env, "ok");
+    EGLBoolean result = eglReleaseThread();
+    if (result == EGL_TRUE) {
+        return ok_atom;
+    }
+    else {
+        return not_ok_atom;
+    }
 }
 
 static ERL_NIF_TERM nif_wait_client(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
