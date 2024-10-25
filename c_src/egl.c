@@ -36,6 +36,8 @@ ERL_NIF_TERM egl_vendor_atom;
 ERL_NIF_TERM egl_version_atom;
 ERL_NIF_TERM egl_extensions_atom;
 
+ERL_NIF_TERM egl_core_native_engine_atom;
+
 static void egl_display_resource_dtor(ErlNifEnv* env, void* obj) {
 }
 
@@ -126,6 +128,8 @@ static int nif_module_load(ErlNifEnv *env, void **priv_data, ERL_NIF_TERM arg)
     egl_vendor_atom = enif_make_atom(env, "vendor");
     egl_version_atom = enif_make_atom(env, "version");
     egl_extensions_atom = enif_make_atom(env, "extensions");
+
+    egl_core_native_engine_atom = enif_make_atom(env, "core_native_engine");
 
     return 0;
 }
@@ -524,16 +528,28 @@ static ERL_NIF_TERM nif_terminate(ErlNifEnv* env, int argc, const ERL_NIF_TERM a
 
 static ERL_NIF_TERM nif_wait_gl(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
-    // EGLAPI EGLBoolean EGLAPIENTRY eglWaitGL (void);
-
-    return enif_make_atom(env, "ok");
+    EGLBoolean result = eglWaitGL();
+    if (result == EGL_TRUE) {
+        return ok_atom;
+    }
+    else {
+        return not_ok_atom;
+    }
 }
 
 static ERL_NIF_TERM nif_wait_native(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
-    // EGLAPI EGLBoolean EGLAPIENTRY eglWaitNative (EGLint engine);
+    if (!enif_is_identical(argv[0], egl_core_native_engine_atom)) {
+        return enif_make_badarg(env);
+    }
 
-    return enif_make_atom(env, "ok");
+    EGLBoolean result = eglWaitNative(EGL_CORE_NATIVE_ENGINE);
+    if (result == EGL_TRUE) {
+        return ok_atom;
+    }
+    else {
+        return not_ok_atom;
+    }
 }
 
 static ERL_NIF_TERM nif_bind_tex_image(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
@@ -598,9 +614,13 @@ static ERL_NIF_TERM nif_release_thread(ErlNifEnv* env, int argc, const ERL_NIF_T
 
 static ERL_NIF_TERM nif_wait_client(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
-    // EGLAPI EGLBoolean EGLAPIENTRY eglWaitClient (void);
-
-    return enif_make_atom(env, "ok");
+    EGLBoolean result = eglWaitClient();
+    if (result == EGL_TRUE) {
+        return ok_atom;
+    }
+    else {
+        return not_ok_atom;
+    }
 }
 
 static ERL_NIF_TERM nif_get_current_context(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
