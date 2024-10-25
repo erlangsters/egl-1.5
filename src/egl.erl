@@ -1126,7 +1126,14 @@ query_surface(Display, Surface, Attribute) ->
 query_surface_raw(_Display, _Surface, _Attribute) ->
     erlang:nif_error(nif_library_not_loaded).
 
-swap_buffers(_A, _B) ->
+%%
+%% eglSwapBuffers — post EGL surface color buffer to a native window
+%%
+%% - foo.
+%% - bar
+%%
+-spec swap_buffers(display(), surface()) -> ok | not_ok.
+swap_buffers(_Display, _Surface) ->
     erlang:nif_error(nif_library_not_loaded).
 
 %%
@@ -1195,7 +1202,14 @@ surface_attrib(Display, Surface, Attribute, Value) ->
 surface_attrib_raw(_Display, _Surface, _Attribute, _Value) ->
     erlang:nif_error(nif_library_not_loaded).
 
-swap_interval(_A, _B) ->
+%%
+%% eglSwapInterval — specifies the minimum number of video frame periods per buffer swap for the window associated with the current context.
+%%
+%% - foo.
+%% - bar
+%%
+-spec swap_interval(display(), pos_integer()) -> ok | not_ok.
+swap_interval(_Display, _Interval) ->
     erlang:nif_error(nif_library_not_loaded).
 
 %%
