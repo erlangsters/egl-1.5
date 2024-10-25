@@ -14,6 +14,8 @@ static ErlNifResourceType* egl_sync_resource_type = NULL;
 static ErlNifResourceType* egl_image_resource_type = NULL;
 
 ERL_NIF_TERM egl_no_display_atom;
+ERL_NIF_TERM egl_no_surface_atom;
+ERL_NIF_TERM egl_no_context_atom;
 
 ERL_NIF_TERM egl_success_atom;
 ERL_NIF_TERM egl_not_initialized_atom;
@@ -107,6 +109,8 @@ static int nif_module_load(ErlNifEnv *env, void **priv_data, ERL_NIF_TERM arg)
     }
 
     egl_no_display_atom = enif_make_atom(env, "no_display");
+    egl_no_surface_atom = enif_make_atom(env, "no_surface");
+    egl_no_context_atom = enif_make_atom(env, "no_context");
 
     egl_success_atom = enif_make_atom(env, "success");
     egl_not_initialized_atom = enif_make_atom(env, "not_initialized");
@@ -493,16 +497,35 @@ static ERL_NIF_TERM nif_get_configs(ErlNifEnv* env, int argc, const ERL_NIF_TERM
 
 static ERL_NIF_TERM nif_get_current_display(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
-    // EGLAPI EGLDisplay EGLAPIENTRY eglGetCurrentDisplay (void);
+    EGLDisplay display = eglGetCurrentDisplay();
+    if (display == EGL_NO_DISPLAY) {
+        return egl_no_display_atom;
+    }
+    else {
+        void* display_resource = enif_alloc_resource(egl_display_resource_type, sizeof(EGLDisplay));
+        *((EGLDisplay*)display_resource) = display;
 
-    return enif_make_atom(env, "ok");
+        return enif_make_resource(env, display_resource);
+    }
 }
 
 static ERL_NIF_TERM nif_get_current_surface(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
-    // EGLAPI EGLSurface EGLAPIENTRY eglGetCurrentSurface (EGLint readdraw);
+    EGLint readdraw;
+    if (!enif_get_int(env, argv[0], &readdraw)) {
+        return enif_make_badarg(env);
+    }
 
-    return enif_make_atom(env, "ok");
+    EGLSurface surface = eglGetCurrentSurface(readdraw);
+    if (surface == EGL_NO_SURFACE) {
+        return egl_no_surface_atom;
+    }
+    else {
+        void* surface_resource = enif_alloc_resource(egl_surface_resource_type, sizeof(EGLSurface));
+        *((EGLSurface*)surface_resource) = surface;
+
+        return enif_make_resource(env, surface_resource);
+    }
 }
 
 static ERL_NIF_TERM nif_get_display(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
@@ -901,9 +924,16 @@ static ERL_NIF_TERM nif_wait_client(ErlNifEnv* env, int argc, const ERL_NIF_TERM
 
 static ERL_NIF_TERM nif_get_current_context(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
-    // EGLAPI EGLContext EGLAPIENTRY eglGetCurrentContext (void);
+    EGLContext context = eglGetCurrentContext();
+    if (context == EGL_NO_CONTEXT) {
+        return egl_no_context_atom;
+    }
+    else {
+        void* context_resource = enif_alloc_resource(egl_context_resource_type, sizeof(EGLContext));
+        *((EGLContext*)context_resource) = context;
 
-    return enif_make_atom(env, "ok");
+        return enif_make_resource(env, context_resource);
+    }
 }
 
 static ERL_NIF_TERM nif_create_sync(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
@@ -989,7 +1019,7 @@ static ErlNifFunc nif_functions[] = {
     {"get_config_attrib_raw", 3, nif_get_config_attrib},
     {"get_configs", 1, nif_get_configs},
     {"get_current_display", 0, nif_get_current_display},
-    {"get_current_surface", 1, nif_get_current_surface},
+    {"get_current_surface_raw", 1, nif_get_current_surface},
     {"get_display", 1, nif_get_display},
     {"get_error", 0, nif_get_error},
     {"initialize", 1, nif_initialize},
