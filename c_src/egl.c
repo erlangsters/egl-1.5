@@ -585,9 +585,52 @@ static ERL_NIF_TERM nif_initialize(ErlNifEnv* env, int argc, const ERL_NIF_TERM 
 
 static ERL_NIF_TERM nif_make_current(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
-    // EGLAPI EGLBoolean EGLAPIENTRY eglMakeCurrent (EGLDisplay dpy, EGLSurface draw, EGLSurface read, EGLContext ctx);
+    void* display_resource;
+    if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
+        return enif_make_badarg(env);
+    }
+    EGLDisplay display = *((EGLDisplay*)display_resource);
 
-    return enif_make_atom(env, "ok");
+    EGLContext draw;
+    if (enif_is_identical(argv[1], enif_make_atom(env, "no_surface"))) {
+        draw = EGL_NO_SURFACE;
+    } else {
+        void* draw_resource;
+        if (!enif_get_resource(env, argv[1], egl_surface_resource_type, &draw_resource)) {
+            return enif_make_badarg(env);
+        }
+        draw = *((EGLSurface*)draw_resource);
+    }
+
+    EGLContext read;
+    if (enif_is_identical(argv[2], enif_make_atom(env, "no_surface"))) {
+        read = EGL_NO_SURFACE;
+    } else {
+        void* read_resource;
+        if (!enif_get_resource(env, argv[2], egl_surface_resource_type, &read_resource)) {
+            return enif_make_badarg(env);
+        }
+        read = *((EGLSurface*)read_resource);
+    }
+    EGLContext context;
+    if (enif_is_identical(argv[3], enif_make_atom(env, "no_context"))) {
+        context = EGL_NO_CONTEXT;
+    }
+    else {
+        void* context_resource;
+        if (!enif_get_resource(env, argv[3], egl_context_resource_type, &context_resource)) {
+            return enif_make_badarg(env);
+        }
+        context = *((EGLContext*)context_resource);
+    }
+
+    EGLBoolean result = eglMakeCurrent(display, draw, read, context);
+    if (result == EGL_TRUE) {
+        return ok_atom;
+    }
+    else {
+        return not_ok_atom;
+    }
 }
 
 static ERL_NIF_TERM nif_query_context(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
