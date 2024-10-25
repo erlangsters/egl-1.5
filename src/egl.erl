@@ -784,10 +784,24 @@ swap_buffers(_A, _B) ->
 terminate(_A) ->
     erlang:nif_error(nif_library_not_loaded).
 
+%%
+%% eglWaitGL — Complete GL execution prior to subsequent native rendering calls
+%%
+%% - foo
+%% - bar
+%%
+-spec wait_gl() -> ok | not_ok.
 wait_gl() ->
     erlang:nif_error(nif_library_not_loaded).
 
-wait_native(_A) ->
+%%
+%% eglWaitNative — complete native execution prior to subsequent GL rendering calls
+%%
+%% - foo
+%% - bar
+%%
+-spec wait_native(core_native_engine) -> ok | not_ok.
+wait_native(_Engine) ->
     erlang:nif_error(nif_library_not_loaded).
 
 bind_tex_image(_A, _B, _C) ->
@@ -821,6 +835,13 @@ create_pbuffer_from_client_buffer(_A, _B, _C, _D, _E) ->
 release_thread() ->
     erlang:nif_error(nif_library_not_loaded).
 
+%%
+%% eglWaitClient — Complete client API execution prior to subsequent native rendering calls
+%%
+%% - foo
+%% - bar
+%%
+-spec wait_client() -> ok | not_ok.
 wait_client() ->
     erlang:nif_error(nif_library_not_loaded).
 
