@@ -78,7 +78,7 @@
     get_config_attrib_raw/3,
     get_configs/1,
     get_current_display/0,
-    get_current_surface/1,
+    get_current_surface_raw/1,
     get_display/1,
     get_error/0,
     initialize/1,
@@ -878,10 +878,31 @@ get_config_attrib_raw(_Display, _Config, _Attribute) ->
 get_configs(_Display) ->
     erlang:nif_error(nif_library_not_loaded).
 
+%%
+%% eglGetCurrentDisplay — return the display for the current EGL rendering context
+%%
+%% - foo
+%% - bar
+%%
+-spec get_current_display() -> no_display | display().
 get_current_display() ->
     erlang:nif_error(nif_library_not_loaded).
 
-get_current_surface(_A) ->
+%%
+%% eglGetCurrentSurface — return the read or draw surface for the current EGL rendering context
+%%
+%% - foo
+%% - bar
+%%
+-spec get_current_surface(read | draw) -> no_surface | surface().
+get_current_surface(ReadDraw) ->
+    ReadDrawRaw = case ReadDraw of
+        read -> ?EGL_READ;
+        draw -> ?EGL_DRAW
+    end,
+    get_current_surface_raw(ReadDrawRaw).
+
+get_current_surface_raw(_ReadDraw) ->
     erlang:nif_error(nif_library_not_loaded).
 
 %%
@@ -1237,6 +1258,13 @@ release_thread() ->
 wait_client() ->
     erlang:nif_error(nif_library_not_loaded).
 
+%%
+%% eglGetCurrentContext — return the current EGL rendering context
+%%
+%% - foo
+%% - bar
+%%
+-spec get_current_context() -> no_context | context().
 get_current_context() ->
     erlang:nif_error(nif_library_not_loaded).
 
