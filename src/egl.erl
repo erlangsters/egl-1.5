@@ -39,7 +39,7 @@
     make_current/4,
     query_context/4,
     query_string/2,
-    query_surface/4,
+    query_surface/3,
     swap_buffers/2,
     terminate/1,
     wait_gl/0,
@@ -70,7 +70,7 @@
     choose_config_raw/2,
     copy_buffers/3,
     create_context/4,
-    create_pbuffer_surface/3,
+    create_pbuffer_surface_raw/3,
     create_pixmap_surface/4,
     create_window_surface/4,
     destroy_context/2,
@@ -85,14 +85,14 @@
     make_current/4,
     query_context/4,
     query_string/2,
-    query_surface/4,
+    query_surface_raw/3,
     swap_buffers/2,
     terminate/1,
     wait_gl/0,
     wait_native/1,
     bind_tex_image/3,
     release_tex_image/3,
-    surface_attrib/4,
+    surface_attrib_raw/4,
     swap_interval/2,
     bind_api/1,
     query_api/0,
@@ -361,6 +361,42 @@
     {transparent_blue_value, dont_care | pos_integer()}
 ].
 
+-type surface_attribs_list() :: [
+    {gl_colorspace, gl_colorspace_srgb | gl_colorspace_linear} |
+    {height, pos_integer()} |
+    {largest_pbuffer, boolean()} |
+    {mipmap_texture, boolean()} |
+    {texture_format, no_texture | texture_rgb | texture_rgba} |
+    {texture_target, no_texture | texture_2d} |
+    {vg_alpha_format, vg_alpha_format_nonpre | vg_alpha_format_pre} |
+    {vg_colorspace, vg_colorspace_srgb | vg_colorspace_linear} |
+    {width, pos_integer()}
+].
+-type surface_attrib_get() ::
+    config_id |
+    gl_colorspace |
+    height |
+    horizontal_resolution |
+    largest_pbuffer |
+    mipmap_level |
+    mipmap_texture |
+    multisample_resolve |
+    pixel_aspect_ratio |
+    render_buffer |
+    swap_behavior |
+    texture_format |
+    texture_target |
+    vertical_resolution |
+    vg_alpha_format |
+    vg_colorspace |
+    width
+.
+-type surface_attrib_set() ::
+    mipmap_level |
+    multisample_resolve |
+    swap_behavior
+.
+
 init() ->
     % XXX: Generated library should be `egl.so` but erlang.mk won't allow that.
     ok = erlang:load_nif("./priv/egl_1_5", 0).
@@ -514,7 +550,69 @@ copy_buffers(_A, _B, _C) ->
 create_context(_A, _B, _C, _D) ->
     erlang:nif_error(nif_library_not_loaded).
 
-create_pbuffer_surface(_A, _B, _C) ->
+%%
+%% eglCreatePbufferSurface — create a new EGL pixel buffer surface
+%%
+%% - foo
+%% - bar
+%%
+-spec create_pbuffer_surface(display(), config(), surface_attribs_list()) ->
+    {ok, surface()} | not_ok.
+create_pbuffer_surface(Display, Config, AttribsList) ->
+    % We transform the list of attributes into a list of integers so the NIF
+    % implementation is easier to write.
+    AttribsListRaw = lists:foldl(fun
+        ({gl_colorspace, GlColorspace}, Accumulator) ->
+            Value = case GlColorspace of
+                gl_colorspace_srgb -> ?EGL_GL_COLORSPACE_SRGB;
+                gl_colorspace_linear -> ?EGL_GL_COLORSPACE_LINEAR
+            end,
+            Accumulator ++ [?EGL_GL_COLORSPACE, Value];
+        ({height, Height}, Accumulator) ->
+            Accumulator ++ [?EGL_HEIGHT, Height];
+        ({largest_pbuffer, LargestPbuffer}, Accumulator) ->
+            Value = case LargestPbuffer of
+                true -> ?EGL_TRUE;
+                false -> ?EGL_FALSE
+            end,
+            Accumulator ++ [?EGL_LARGEST_PBUFFER, Value];
+        ({mipmap_texture, MipmapTexture}, Accumulator) ->
+            Value = case MipmapTexture of
+                true -> ?EGL_TRUE;
+                false -> ?EGL_FALSE
+            end,
+            Accumulator ++ [?EGL_MIPMAP_TEXTURE, Value];
+        ({texture_format, TextureFormat}, Accumulator) ->
+            Value = case TextureFormat of
+                no_texture -> ?EGL_NO_TEXTURE;
+                texture_rgb -> ?EGL_TEXTURE_RGB;
+                texture_rgba -> ?EGL_TEXTURE_RGBA
+            end,
+            Accumulator ++ [?EGL_TEXTURE_FORMAT, Value];
+        ({texture_target, TextureTarget}, Accumulator) ->
+            Value = case TextureTarget of
+                no_texture -> ?EGL_NO_TEXTURE;
+                texture_2d -> ?EGL_TEXTURE_2D
+            end,
+            Accumulator ++ [?EGL_TEXTURE_TARGET, Value];
+        ({vg_alpha_format, VgAlphaFormat}, Accumulator) ->
+            Value = case VgAlphaFormat of
+                vg_alpha_format_nonpre -> ?EGL_VG_ALPHA_FORMAT_NONPRE;
+                vg_alpha_format_pre -> ?EGL_VG_ALPHA_FORMAT_PRE
+            end,
+            Accumulator ++ [?EGL_VG_ALPHA_FORMAT, Value];
+        ({vg_colorspace, VgColorspace}, Accumulator) ->
+            Value = case VgColorspace of
+                vg_colorspace_srgb -> ?EGL_VG_COLORSPACE_sRGB;
+                vg_colorspace_linear -> ?EGL_VG_COLORSPACE_LINEAR
+            end,
+            Accumulator ++ [?EGL_VG_COLORSPACE, Value];
+        ({width, Width}, Accumulator) ->
+            Accumulator ++ [?EGL_WIDTH, Width]
+    end, [], AttribsList),
+    create_pbuffer_surface_raw(Display, Config, AttribsListRaw).
+
+create_pbuffer_surface_raw(_Display, _Config, _AttribsList) ->
     erlang:nif_error(nif_library_not_loaded).
 
 create_pixmap_surface(_A, _B, _C, _D) ->
@@ -526,7 +624,14 @@ create_window_surface(_A, _B, _C, _D) ->
 destroy_context(_A, _B) ->
     erlang:nif_error(nif_library_not_loaded).
 
-destroy_surface(_A, _B) ->
+%%
+%% eglDestroySurface — destroy an EGL surface
+%%
+%% - foo
+%% - bar
+%%
+-spec destroy_surface(display(), surface()) -> ok | not_ok.
+destroy_surface(_Dislay, _Surface) ->
     erlang:nif_error(nif_library_not_loaded).
 
 %%
@@ -768,7 +873,107 @@ query_context(_A, _B, _C, _D) ->
 query_string(_Display, _Name) ->
     erlang:nif_error(nif_library_not_loaded).
 
-query_surface(_A, _B, _C, _D) ->
+%%
+%% eglQuerySurface — return EGL surface information
+%%
+%% - foo
+%% - bar
+%%
+-spec query_surface(display(), surface(), surface_attrib_get()) ->
+    {ok, term()} | not_ok.
+query_surface(Display, Surface, Attribute) ->
+    AttributeRaw = case Attribute of
+        config_id -> ?EGL_CONFIG_ID;
+        gl_colorspace -> ?EGL_GL_COLORSPACE;
+        height -> ?EGL_HEIGHT;
+        horizontal_resolution -> ?EGL_HORIZONTAL_RESOLUTION;
+        largest_pbuffer -> ?EGL_LARGEST_PBUFFER;
+        mipmap_level -> ?EGL_MIPMAP_LEVEL;
+        mipmap_texture -> ?EGL_MIPMAP_TEXTURE;
+        multisample_resolve -> ?EGL_MULTISAMPLE_RESOLVE;
+        pixel_aspect_ratio -> ?EGL_PIXEL_ASPECT_RATIO;
+        render_buffer -> ?EGL_RENDER_BUFFER;
+        swap_behavior -> ?EGL_SWAP_BEHAVIOR;
+        texture_format -> ?EGL_TEXTURE_FORMAT;
+        texture_target -> ?EGL_TEXTURE_TARGET;
+        vertical_resolution -> ?EGL_VERTICAL_RESOLUTION;
+        vg_alpha_format -> ?EGL_VG_ALPHA_FORMAT;
+        vg_colorspace -> ?EGL_VG_COLORSPACE;
+        width -> ?EGL_WIDTH
+    end,
+    case query_surface_raw(Display, Surface, AttributeRaw) of
+        {ok, ValueRaw} ->
+            Value = case Attribute of
+                config_id ->
+                    ValueRaw;
+                gl_colorspace ->
+                    case ValueRaw of
+                        ?EGL_GL_COLORSPACE_SRGB -> gl_colorspace_srgb;
+                        ?EGL_GL_COLORSPACE_LINEAR -> gl_colorspace_linear
+                    end;
+                height ->
+                    ValueRaw;
+                horizontal_resolution ->
+                    ValueRaw;
+                largest_pbuffer ->
+                    ValueRaw;
+                mipmap_level ->
+                    ValueRaw;
+                mipmap_texture ->
+                    case ValueRaw of
+                        ?EGL_TRUE -> true;
+                        ?EGL_FALSE -> false
+                    end;
+                multisample_resolve ->
+                    case ValueRaw of
+                        ?EGL_MULTISAMPLE_RESOLVE_DEFAULT -> multisample_resolve_default;
+                        ?EGL_MULTISAMPLE_RESOLVE_BOX -> multisample_resolve_box
+                    end;
+                pixel_aspect_ratio ->
+                    ValueRaw;
+                render_buffer ->
+                    % XXX: Verify if those are the only two legit values.
+                    case ValueRaw of
+                        ?EGL_BACK_BUFFER -> back_buffer;
+                        ?EGL_SINGLE_BUFFER -> single_buffer
+                    end;
+                swap_behavior ->
+                    case ValueRaw of
+                        ?EGL_BUFFER_PRESERVED -> buffer_preserved;
+                        ?EGL_BUFFER_DESTROYED -> buffer_destroyed
+                    end;
+                texture_format ->
+                    case ValueRaw of
+                        ?EGL_NO_TEXTURE -> no_texture;
+                        ?EGL_TEXTURE_RGB -> texture_rgb;
+                        ?EGL_TEXTURE_RGBA -> texture_rgba
+                    end;
+                texture_target ->
+                    case ValueRaw of
+                        ?EGL_NO_TEXTURE -> no_texture;
+                        ?EGL_TEXTURE_2D -> texture_2d
+                    end;
+                vertical_resolution ->
+                    ValueRaw;
+                vg_alpha_format ->
+                    case ValueRaw of
+                        ?EGL_VG_ALPHA_FORMAT_NONPRE -> vg_alpha_format_nonpre;
+                        ?EGL_VG_ALPHA_FORMAT_PRE -> vg_alpha_format_pre
+                    end;
+                vg_colorspace ->
+                    case ValueRaw of
+                        ?EGL_VG_COLORSPACE_sRGB -> vg_colorspace_srgb;
+                        ?EGL_VG_COLORSPACE_LINEAR -> vg_colorspace_linear
+                    end;
+                width ->
+                    ValueRaw
+            end,
+            {ok, Value};
+        not_ok ->
+            not_ok
+    end.
+
+query_surface_raw(_Display, _Surface, _Attribute) ->
     erlang:nif_error(nif_library_not_loaded).
 
 swap_buffers(_A, _B) ->
@@ -810,7 +1015,34 @@ bind_tex_image(_A, _B, _C) ->
 release_tex_image(_A, _B, _C) ->
     erlang:nif_error(nif_library_not_loaded).
 
-surface_attrib(_A, _B, _C, _D) ->
+%%
+%% eglSurfaceAttrib — set an EGL surface attribute
+%%
+%% - foo
+%% - bar
+%%
+-spec surface_attrib(display(), surface(), surface_attrib_set(), term()) -> ok | not_ok.
+surface_attrib(Display, Surface, Attribute, Value) ->
+    {RawAttribute, RawValue} = case
+        Attribute of
+            mipmap_level ->
+                {?EGL_MIPMAP_LEVEL, Value};
+            multisample_resolve ->
+                RawValue_ = case Value of
+                    multisample_resolve_default -> ?EGL_MULTISAMPLE_RESOLVE_DEFAULT;
+                    multisample_resolve_box -> ?EGL_MULTISAMPLE_RESOLVE_BOX
+                end,
+                {?EGL_MULTISAMPLE_RESOLVE, RawValue_};
+            swap_behavior ->
+                RawValue_ = case Value of
+                    buffer_preserved -> ?EGL_BUFFER_PRESERVED;
+                    buffer_destroyed -> ?EGL_BUFFER_DESTROYED
+                end,
+                {?EGL_SWAP_BEHAVIOR, RawValue_}
+    end,
+    surface_attrib_raw(Display, Surface, RawAttribute, RawValue).
+
+surface_attrib_raw(_Display, _Surface, _Attribute, _Value) ->
     erlang:nif_error(nif_library_not_loaded).
 
 swap_interval(_A, _B) ->
