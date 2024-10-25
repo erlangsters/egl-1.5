@@ -450,12 +450,13 @@ choose_config(Display, AttribsList) ->
         ({config_id, ConfigId}, Accumulator) ->
             Accumulator ++ [?EGL_CONFIG_ID, ConfigId];
         ({conformant, Conformant}, Accumulator) ->
-            Value = case Conformant of
-                opengl_bit -> ?EGL_OPENGL_BIT;
-                opengl_es_bit -> ?EGL_OPENGL_ES_BIT;
-                opengl_es2_bit -> ?EGL_OPENGL_ES2_BIT;
-                openvg_bit -> ?EGL_OPENVG_BIT
-            end,
+            Flags = lists:map(fun
+                (opengl_bit) -> ?EGL_OPENGL_BIT;
+                (opengl_es_bit) -> ?EGL_OPENGL_ES_BIT;
+                (opengl_es2_bit) -> ?EGL_OPENGL_ES2_BIT;
+                (openvg_bit) -> ?EGL_OPENVG_BIT
+            end, Conformant),
+            Value = lists:foldl(fun(Flag, AccumulatorBis) ->  Flag bor AccumulatorBis end, 0, Flags),
             Accumulator ++ [?EGL_CONFORMANT, Value];
         ({depth_size, DepthSize}, Accumulator) ->
             Accumulator ++ [?EGL_DEPTH_SIZE, DepthSize];
@@ -493,23 +494,25 @@ choose_config(Display, AttribsList) ->
         ({stencil_size, StencilSize}, Accumulator) ->
             Accumulator ++ [?EGL_STENCIL_SIZE, StencilSize];
         ({renderable_type, RenderableType}, Accumulator) ->
-            Value = case RenderableType of
-                opengl_bit -> ?EGL_OPENGL_BIT;
-                opengl_es_bit -> ?EGL_OPENGL_ES_BIT;
-                opengl_es2_bit -> ?EGL_OPENGL_ES2_BIT;
-                openvg_bit -> ?EGL_OPENVG_BIT
-            end,
+            Flags = lists:map(fun
+                (opengl_bit) -> ?EGL_OPENGL_BIT;
+                (opengl_es_bit) -> ?EGL_OPENGL_ES_BIT;
+                (opengl_es2_bit) -> ?EGL_OPENGL_ES2_BIT;
+                (openvg_bit) -> ?EGL_OPENVG_BIT
+            end, RenderableType),
+            Value = lists:foldl(fun(Flag, AccumulatorBis) ->  Flag bor AccumulatorBis end, 0, Flags),
             Accumulator ++ [?EGL_RENDERABLE_TYPE, Value];
         ({surface_type, SurfaceType}, Accumulator) ->
-            Value = case SurfaceType of
-                multisample_resolve_box_bit -> ?EGL_MULTISAMPLE_RESOLVE_BOX_BIT;
-                pbuffer_bit -> ?EGL_PBUFFER_BIT;
-                pixmat_bit -> ?EGL_PIXMAP_BIT;
-                swap_behavior_preserved_bit -> ?EGL_SWAP_BEHAVIOR_PRESERVED_BIT;
-                vg_alpha_format_pre_bit -> ?EGL_VG_ALPHA_FORMAT_PRE_BIT;
-                vg_colorspace_linear_bit -> ?EGL_VG_COLORSPACE_LINEAR_BIT;
-                window_bit -> ?EGL_WINDOW_BIT
-            end,
+            Flags = lists:map(fun
+                (multisample_resolve_box_bit) -> ?EGL_MULTISAMPLE_RESOLVE_BOX_BIT;
+                (pbuffer_bit) -> ?EGL_PBUFFER_BIT;
+                (pixmat_bit) -> ?EGL_PIXMAP_BIT;
+                (swap_behavior_preserved_bit) -> ?EGL_SWAP_BEHAVIOR_PRESERVED_BIT;
+                (vg_alpha_format_pre_bit) -> ?EGL_VG_ALPHA_FORMAT_PRE_BIT;
+                (vg_colorspace_linear_bit) -> ?EGL_VG_COLORSPACE_LINEAR_BIT;
+                (window_bit) -> ?EGL_WINDOW_BIT
+            end, SurfaceType),
+            Value = lists:foldl(fun(Flag, AccumulatorBis) ->  Flag bor AccumulatorBis end, 0, Flags),
             Accumulator ++ [?EGL_SURFACE_TYPE, Value];
         ({transparent_type, TransparentType}, Accumulator) ->
             Value = case TransparentType of
