@@ -417,9 +417,6 @@
 .
 
 init() ->
-    % XXX: Generated library should be `egl.so` but erlang.mk won't allow that.
-    % ok = erlang:load_nif("./priv/egl_1_5", 0).
-
     PrivDir = code:priv_dir(?MODULE),
     NifPath = filename:join(PrivDir, "egl_1_5"),
     ok = erlang:load_nif(NifPath, 0).
