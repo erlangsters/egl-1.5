@@ -1,5 +1,5 @@
 {application, egl_1_5,
- [{description, "An OTP library"},
+ [{description, "EGL 1.5 binding for the BEAM"},
   {vsn, "0.1.0"},
   {registered, []},
   {applications,
@@ -7,8 +7,7 @@
     stdlib
    ]},
   {env,[]},
-  {modules, []},
-
+  {modules, [egl]},
   {licenses, ["MIT"]},
   {links, []}
  ]}.
