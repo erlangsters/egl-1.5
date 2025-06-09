@@ -1,9 +1,52 @@
+#include <stdbool.h>
 #include <string.h>
 #include <erl_nif.h>
 #include <EGL/egl.h>
+#include "commands_executor.h"
+
+ERL_NIF_TERM egl_execute_command(
+    ERL_NIF_TERM (*function)(ErlNifEnv*, int, const ERL_NIF_TERM[]),
+    ErlNifEnv* env,
+    int argc,
+    ERL_NIF_TERM* argv[]
+) {
+    printf("egl_execute_command:begin\n");
+    
+    // We retrieve the PID of the calling process.
+    ErlNifPid pid;
+    enif_self(env, &pid);
+
+    // If the PID has an associated commands executor, we let the executor
+    // execute the command.
+    ERL_NIF_TERM result;
+    if (my_execute_command_if_executor(&pid, function, env, argc, argv, &result)) {
+        printf("command has executed on executor thread\n");
+
+        // There was an executor associated with the PID. The command was
+        // executed on a separate thread and we return the result to the 
+        // caller.
+        return result;
+    }
+    else {
+
+        // The PID does not have an associated commands executor. We execute 
+        // the command on the calling OS thread.
+        result = function(env, argc, argv);
+
+        printf("command has executed on caller OS thread\n");
+    }
+
+    return result;
+}
+
+ERL_NIF_TERM true_atom;
+ERL_NIF_TERM false_atom;
 
 ERL_NIF_TERM ok_atom;
 ERL_NIF_TERM not_ok_atom;
+
+ErlNifResourceType* egl_window_resource_type = NULL;
+static ErlNifResourceType* egl_pixmap_resource_type = NULL;
 
 static ErlNifResourceType* egl_display_resource_type = NULL;
 static ErlNifResourceType* egl_config_resource_type = NULL;
@@ -63,8 +106,22 @@ static void egl_image_resource_dtor(ErlNifEnv* env, void* obj) {
 
 static int nif_module_load(ErlNifEnv *env, void **priv_data, ERL_NIF_TERM arg)
 {
+    true_atom = enif_make_atom(env, "true");
+    false_atom = enif_make_atom(env, "false");
+
     ok_atom = enif_make_atom(env, "ok");
     not_ok_atom = enif_make_atom(env, "not_ok");
+
+    egl_window_resource_type = enif_open_resource_type(env, NULL, "egl_window", NULL, ERL_NIF_RT_CREATE, NULL);
+    if (egl_window_resource_type == NULL) {
+        fprintf(stderr, "failed to open 'EGL window' resource type\n");
+        return -1;
+    }
+    egl_pixmap_resource_type = enif_open_resource_type(env, NULL, "egl_pixmap", NULL, ERL_NIF_RT_CREATE, NULL);
+    if (egl_pixmap_resource_type == NULL) {
+        fprintf(stderr, "failed to open 'EGL pixmap' resource type\n");
+        return -1;
+    }
 
     egl_display_resource_type = enif_open_resource_type(env, NULL, "egl_display", egl_display_resource_dtor, ERL_NIF_RT_CREATE, NULL);
     if (egl_display_resource_type == NULL) {
@@ -299,7 +356,7 @@ static ERL_NIF_TERM nif_create_context(ErlNifEnv* env, int argc, const ERL_NIF_T
 
 static ERL_NIF_TERM nif_create_pbuffer_surface(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
-    // Second argument is a list of integers that was prepared on the Erlang
+    // Third argument is a list of integers that was prepared on the Erlang
     // side so we just pass it as is to eglCreatePbufferSurface. We just have
     // to convert it into a C array and append EGL_NONE to it.
     void* display_resource;
@@ -364,9 +421,43 @@ static ERL_NIF_TERM nif_create_pixmap_surface(ErlNifEnv* env, int argc, const ER
 
 static ERL_NIF_TERM nif_create_window_surface(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
-    // EGLAPI EGLSurface EGLAPIENTRY eglCreateWindowSurface (EGLDisplay dpy, EGLConfig config, EGLNativeWindowType win, const EGLint *attrib_list);
+    printf("oloy \n");
+    void* display_resource;
+    if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
+        printf("aaa\n");
+        return enif_make_badarg(env);
+    }
+    EGLDisplay display = *((EGLDisplay*)display_resource);
 
-    return enif_make_atom(env, "ok");
+    void* config_resource;
+    if (!enif_get_resource(env, argv[1], egl_config_resource_type, &config_resource)) {
+        printf("bbbb\n");
+        return enif_make_badarg(env);
+    }
+    EGLConfig config = *((EGLConfig*)config_resource);
+
+    void* native_window_resource;
+    if (!enif_get_resource(env, argv[2], egl_window_resource_type, &native_window_resource)) {
+        printf("cccc\n");
+        return enif_make_badarg(env);
+    }
+    EGLNativeWindowType native_window = *((EGLNativeWindowType*)native_window_resource);
+
+    printf("ddd\n");
+    EGLSurface result = eglCreateWindowSurface(display, config, native_window, NULL);
+    if (result == EGL_NO_SURFACE) {
+        return not_ok_atom;
+    }
+    else {
+        void* surface_resource = enif_alloc_resource(egl_surface_resource_type, sizeof(EGLSurface));
+        *((EGLSurface*)surface_resource) = result;
+
+        return enif_make_tuple2(
+            env,
+            enif_make_atom(env, "ok"),
+            enif_make_resource(env, surface_resource)
+        );
+    }
 }
 
 static ERL_NIF_TERM nif_destroy_context(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
@@ -548,7 +639,6 @@ static ERL_NIF_TERM nif_get_display(ErlNifEnv* env, int argc, const ERL_NIF_TERM
 
 static ERL_NIF_TERM nif_get_error(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
-
     EGLint error = eglGetError();
     switch (error) {
         case EGL_SUCCESS:
@@ -606,7 +696,7 @@ static ERL_NIF_TERM nif_initialize(ErlNifEnv* env, int argc, const ERL_NIF_TERM 
     }
 }
 
-static ERL_NIF_TERM nif_make_current(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM nif_make_current_inner(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     void* display_resource;
     if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
@@ -647,6 +737,7 @@ static ERL_NIF_TERM nif_make_current(ErlNifEnv* env, int argc, const ERL_NIF_TER
         context = *((EGLContext*)context_resource);
     }
 
+
     EGLBoolean result = eglMakeCurrent(display, draw, read, context);
     if (result == EGL_TRUE) {
         return ok_atom;
@@ -654,6 +745,30 @@ static ERL_NIF_TERM nif_make_current(ErlNifEnv* env, int argc, const ERL_NIF_TER
     else {
         return not_ok_atom;
     }
+}
+
+static ERL_NIF_TERM nif_make_current(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+{
+    printf("nif_make_current\n");
+    ErlNifPid pid;
+    enif_self(env, &pid);
+    printf("nif_make_current\n");
+    bool hasCreatedNewExecutor = my_create_executor_if_not_any(&pid);
+    printf("hasCreatedNewExecutor: %d\n", hasCreatedNewExecutor);
+
+    ERL_NIF_TERM result;
+    bool hasExecutor = my_execute_command_if_executor(
+        &pid, 
+        nif_make_current_inner, 
+        env, 
+        argc, 
+        argv, 
+        &result
+    );
+    // assert(hasExecutor)
+    printf("hasExecutor: %d\n", hasExecutor);
+
+    return result;
 }
 
 static ERL_NIF_TERM nif_query_context(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
@@ -767,7 +882,7 @@ static ERL_NIF_TERM nif_query_surface(ErlNifEnv* env, int argc, const ERL_NIF_TE
     }
 }
 
-static ERL_NIF_TERM nif_swap_buffers(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM nif_swap_buffers_inner(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     void* display_resource;
     if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
@@ -788,6 +903,32 @@ static ERL_NIF_TERM nif_swap_buffers(ErlNifEnv* env, int argc, const ERL_NIF_TER
     else {
         return not_ok_atom;
     }
+}
+
+static ERL_NIF_TERM nif_swap_buffers(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+{
+    // XXX: WTF, it looks like it's not a thread-safe funciton and therefore 
+    //      must be executed on a different thread. Docs says  it does an implicit
+    //      glFlush - perhaps that's why.
+    printf("nif_swap_buffers\n");
+    ErlNifPid pid;
+    enif_self(env, &pid);
+    bool hasCreatedNewExecutor = my_create_executor_if_not_any(&pid);
+    printf("hasCreatedNewExecutor: %d\n", hasCreatedNewExecutor);
+
+    ERL_NIF_TERM result;
+    bool hasExecutor = my_execute_command_if_executor(
+        &pid, 
+        nif_swap_buffers_inner, 
+        env, 
+        argc, 
+        argv, 
+        &result
+    );
+    // assert(hasExecutor)
+    printf("hasExecutor: %d\n", hasExecutor);
+
+    return result;
 }
 
 static ERL_NIF_TERM nif_terminate(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
@@ -1044,7 +1185,7 @@ static ErlNifFunc nif_functions[] = {
     {"create_context_raw", 4, nif_create_context},
     {"create_pbuffer_surface_raw", 3, nif_create_pbuffer_surface},
     {"create_pixmap_surface", 4, nif_create_pixmap_surface},
-    {"create_window_surface", 4, nif_create_window_surface},
+    {"create_window_surface_raw", 3, nif_create_window_surface},
     {"destroy_context", 2, nif_destroy_context},
     {"destroy_surface", 2, nif_destroy_surface},
     {"get_config_attrib_raw", 3, nif_get_config_attrib},
@@ -1055,7 +1196,7 @@ static ErlNifFunc nif_functions[] = {
     {"get_error", 0, nif_get_error},
     {"initialize", 1, nif_initialize},
     {"make_current", 4, nif_make_current},
-    {"query_context_raw", 4, nif_query_context},
+    {"query_context_raw", 3, nif_query_context},
     {"query_string", 2, nif_query_string},
     {"query_surface_raw", 3, nif_query_surface},
     {"swap_buffers", 2, nif_swap_buffers},
