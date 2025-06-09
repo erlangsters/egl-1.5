@@ -72,6 +72,8 @@ Another source of reference is the
 
 -export_type([
     display/0,
+    native_display/0,
+    platform/0,
     config/0,
     surface/0,
     context/0,
@@ -79,14 +81,13 @@ Another source of reference is the
     sync/0,
     image/0,
     config_attrib/0,
-    config_attribs_list/0
+    config_attribs_list/0,
+    window_surface_attribs_list/0
 ]).
 -export([
     choose_config/2,
-    copy_buffers/3,
     create_context/4,
     create_pbuffer_surface/3,
-    create_pixmap_surface/4,
     create_window_surface/4,
     destroy_context/2,
     destroy_surface/2,
@@ -105,35 +106,21 @@ Another source of reference is the
     terminate/1,
     wait_gl/0,
     wait_native/1,
-    bind_tex_image/3,
-    release_tex_image/3,
     surface_attrib/4,
     swap_interval/2,
     bind_api/1,
     query_api/0,
-    create_pbuffer_from_client_buffer/5,
     release_thread/0,
     wait_client/0,
     get_current_context/0,
-    create_sync/3,
-    destroy_sync/2,
-    client_wait_sync/4,
-    get_sync_attrib/4,
-    create_image/5,
-    destroy_image/2,
-    get_platform_display/3,
-    create_platform_window_surface/4,
-    create_platform_pixmap_surface/4,
-    wait_sync/3
+    get_platform_display/3
 ]).
 
 -nifs([
     choose_config_raw/2,
-    copy_buffers/3,
     create_context_raw/4,
     create_pbuffer_surface_raw/3,
-    create_pixmap_surface/4,
-    create_window_surface_raw/3,
+    create_window_surface_raw/4,
     destroy_context/2,
     destroy_surface/2,
     get_config_attrib_raw/3,
@@ -151,29 +138,17 @@ Another source of reference is the
     terminate/1,
     wait_gl/0,
     wait_native/1,
-    bind_tex_image/3,
-    release_tex_image/3,
     surface_attrib_raw/4,
     swap_interval/2,
     bind_api_raw/1,
     query_api_raw/0,
-    create_pbuffer_from_client_buffer/5,
     release_thread/0,
     wait_client/0,
     get_current_context/0,
-    create_sync/3,
-    destroy_sync/2,
-    client_wait_sync/4,
-    get_sync_attrib/4,
-    create_image/5,
-    destroy_image/2,
-    get_platform_display/3,
-    create_platform_window_surface/4,
-    create_platform_pixmap_surface/4,
-    wait_sync/3
+    get_platform_display/3
 ]).
 
--on_load(init/0).
+-on_load(egl_init/0).
 
 % EGL 1.0.
 -define(EGL_ALPHA_SIZE, 16#3021).
@@ -351,6 +326,14 @@ An EGLDisplay object.
 It's a reference to an EGL display connection.
 """).
 -type display() :: reference().
+-doc """
+A native display connection wrapped for `get_platform_display/3`.
+
+Sibling NIFs such as GLFW create this term. It is not constructed from Erlang.
+""".
+-type native_display() :: reference().
+-doc "EGL platforms accepted by `get_platform_display/3`.".
+-type platform() :: wayland | x11 | angle.
 -doc("EGLConfig").
 -type config() :: reference().
 -doc("EGLSurface").
@@ -447,6 +430,13 @@ It's a reference to an EGL display connection.
     {vg_colorspace, vg_colorspace_srgb | vg_colorspace_linear} |
     {width, pos_integer()}
 ].
+-doc("Window-surface creation attributes.").
+-type window_surface_attribs_list() :: [
+    {gl_colorspace, gl_colorspace_srgb | gl_colorspace_linear} |
+    {render_buffer, back_buffer | single_buffer} |
+    {vg_alpha_format, vg_alpha_format_nonpre | vg_alpha_format_pre} |
+    {vg_colorspace, vg_colorspace_srgb | vg_colorspace_linear}
+].
 -doc("To be written.").
 -type surface_attrib_get() ::
     config_id |
@@ -495,9 +485,9 @@ It's a reference to an EGL display connection.
     render_buffer
 .
 
-init() ->
+egl_init() ->
     LibName = "beam-egl",
-    SoName = case code:priv_dir(?MODULE) of
+    LibPath = case code:priv_dir(?MODULE) of
         {error, bad_name} ->
             case filelib:is_dir(filename:join(["..", priv])) of
                 true ->
@@ -505,11 +495,10 @@ init() ->
                 _ ->
                     filename:join([priv, LibName])
             end;
-        Dir ->
-            filename:join(Dir, LibName)
+        PrivDir ->
+            filename:join(PrivDir, LibName)
     end,
-    io:format("Loading EGL NIF from ~s~n", [SoName]),
-    erlang:load_nif(SoName, 0).
+    erlang:load_nif(LibPath, undefined).
 
 -doc("""
 Return a list of EGL frame buffer configurations that match specified
@@ -656,6 +645,7 @@ choose_config(Display, AttribsList) ->
 choose_config_raw(_Display, _AttribsList) ->
     erlang:nif_error(nif_library_not_loaded).
 
+-if(false).
 -doc("""
 Copy EGL surface color buffer to a native pixmap.
 
@@ -665,6 +655,7 @@ for more information.
 """).
 copy_buffers(_A, _B, _C) ->
     erlang:nif_error(nif_library_not_loaded).
+-endif.
 
 -doc("""
 Create a new EGL rendering context.
@@ -786,6 +777,7 @@ create_pbuffer_surface(Display, Config, AttribsList) ->
 create_pbuffer_surface_raw(_Display, _Config, _AttribsList) ->
     erlang:nif_error(nif_library_not_loaded).
 
+-if(false).
 -doc("""
 Create a new EGL offscreen surface.
 
@@ -795,6 +787,7 @@ for more information.
 """).
 create_pixmap_surface(_A, _B, _C, _D) ->
     erlang:nif_error(nif_library_not_loaded).
+-endif.
 
 -doc("""
 Create a new EGL window surface.
@@ -803,10 +796,42 @@ It implements the `eglCreateWindowSurface()` function. Read the documentation of
 [C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglCreateWindowSurface.xhtml)
 for more information.
 """).
-create_window_surface(Display, Config, NativeWindow, _AttribsList) ->
-    create_window_surface_raw(Display, Config, NativeWindow).
+-spec create_window_surface(
+    display(),
+    config(),
+    term(),
+    window_surface_attribs_list()
+) -> {ok, surface()} | not_ok.
+create_window_surface(Display, Config, NativeWindow, AttribsList) ->
+    AttribsListRaw = lists:foldl(fun
+        ({gl_colorspace, GlColorspace}, Accumulator) ->
+            Value = case GlColorspace of
+                gl_colorspace_srgb -> ?EGL_GL_COLORSPACE_SRGB;
+                gl_colorspace_linear -> ?EGL_GL_COLORSPACE_LINEAR
+            end,
+            Accumulator ++ [?EGL_GL_COLORSPACE, Value];
+        ({render_buffer, RenderBuffer}, Accumulator) ->
+            Value = case RenderBuffer of
+                back_buffer -> ?EGL_BACK_BUFFER;
+                single_buffer -> ?EGL_SINGLE_BUFFER
+            end,
+            Accumulator ++ [?EGL_RENDER_BUFFER, Value];
+        ({vg_alpha_format, VgAlphaFormat}, Accumulator) ->
+            Value = case VgAlphaFormat of
+                vg_alpha_format_nonpre -> ?EGL_VG_ALPHA_FORMAT_NONPRE;
+                vg_alpha_format_pre -> ?EGL_VG_ALPHA_FORMAT_PRE
+            end,
+            Accumulator ++ [?EGL_VG_ALPHA_FORMAT, Value];
+        ({vg_colorspace, VgColorspace}, Accumulator) ->
+            Value = case VgColorspace of
+                vg_colorspace_srgb -> ?EGL_VG_COLORSPACE_sRGB;
+                vg_colorspace_linear -> ?EGL_VG_COLORSPACE_LINEAR
+            end,
+            Accumulator ++ [?EGL_VG_COLORSPACE, Value]
+    end, [], AttribsList),
+    create_window_surface_raw(Display, Config, NativeWindow, AttribsListRaw).
 
-create_window_surface_raw(_A, _B, _C) ->
+create_window_surface_raw(_Display, _Config, _NativeWindow, _AttribsList) ->
     erlang:nif_error(nif_library_not_loaded).
 
 -doc("""
@@ -1033,9 +1058,8 @@ get_current_surface_raw(_ReadDraw) ->
 -doc("""
 Return an EGL display connection.
 
-- Parameter must be 'default_display'.
-XXX: First parameter must be reworked.
-XXX: parameter must be reworked.
+The argument must be `default_display`. Native displays use
+`get_platform_display/3`.
 
 It implements the `eglGetDisplay()` function. Read the documentation of the
 [C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglGetDisplay.xhtml)
@@ -1309,6 +1333,7 @@ for more information.
 wait_native(_Engine) ->
     erlang:nif_error(nif_library_not_loaded).
 
+-if(false).
 -doc("""
 Defines a two-dimensional texture image.
 
@@ -1328,6 +1353,7 @@ for more information.
 """).
 release_tex_image(_A, _B, _C) ->
     erlang:nif_error(nif_library_not_loaded).
+-endif.
 
 -doc("""
 Set an EGL surface attribute.
@@ -1411,6 +1437,7 @@ query_api() ->
 query_api_raw() ->
     erlang:nif_error(nif_library_not_loaded).
 
+-if(false).
 -doc("""
 Create a new EGL pixel buffer surface bound to an OpenVG image.
 
@@ -1420,6 +1447,7 @@ for more information.
 """).
 create_pbuffer_from_client_buffer(_A, _B, _C, _D, _E) ->
     erlang:nif_error(nif_library_not_loaded).
+-endif.
 
 -doc("""
 Release EGL per-thread state.
@@ -1454,6 +1482,7 @@ for more information.
 get_current_context() ->
     erlang:nif_error(nif_library_not_loaded).
 
+-if(false).
 -doc("""
 Create a new EGL sync object.
 
@@ -1513,17 +1542,28 @@ for more information.
 """).
 destroy_image(_A, _B) ->
     erlang:nif_error(nif_library_not_loaded).
+-endif.
 
 -doc("""
-Return an EGL display connection.
+Return an EGL display connection for a native platform.
+
+It calls `eglGetPlatformDisplay`. `default_display` uses `EGL_DEFAULT_DISPLAY`.
+A `native_display()` is a handle from a sibling such as
+`glfw:display_egl_handle/0`. On Wayland, GLFW windows need that handle, not
+`default_display`.
+
+The attribute list is `[]` in this version.
 
 It implements the `eglGetPlatformDisplay()` function. Read the documentation of the
 [C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglGetPlatformDisplay.xhtml)
 for more information.
 """).
-get_platform_display(_A, _B, _C) ->
+-spec get_platform_display(platform(), default_display | native_display(), []) ->
+    no_display | display().
+get_platform_display(_Platform, _NativeDisplay, []) ->
     erlang:nif_error(nif_library_not_loaded).
 
+-if(false).
 -doc("""
 Create a new EGL on-screen rendering surface.
 
@@ -1553,6 +1593,7 @@ for more information.
 """).
 wait_sync(_A, _B, _C) ->
     erlang:nif_error(nif_library_not_loaded).
+-endif.
 
 to_bitmask(Value, Flags) ->
     maps:fold(fun(Left, Right, Accumulator) ->

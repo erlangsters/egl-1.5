@@ -94,3 +94,21 @@ ErlNifResourceType* egl_window_resource_type = get_egl_window_resource_type(env)
 ```
 
 And voila.
+
+## Native display handle
+
+Window surfaces on Wayland must use the same `wl_display` as the window
+toolkit. `egl:get_display(default_display)` does not do that.
+`egl:get_platform_display/3` accepts a native display resource of type
+`egl_native_display`, exposed by `get_egl_native_display_resource_type()`.
+
+The wrap is the same as the window handle: allocate the resource, store a
+`void *`, return the term. GLFW does this in `display_egl_handle/0`.
+
+```erlang
+NativeDisplay = glfw:display_egl_handle().
+Display = egl:get_platform_display(wayland, NativeDisplay, []).
+```
+
+`default_display` still means `EGL_DEFAULT_DISPLAY`. That is valid for
+pbuffer and ANGLE paths. It is not the GLFW window path on Wayland.

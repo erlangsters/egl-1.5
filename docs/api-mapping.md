@@ -39,23 +39,23 @@ their equivalent. If exceptions where to be made, it's in the notes.
 | EGL | Binding | Notes |
 |---- | ------- | ----- |
 | `eglBindAPI` | `bind_api` | N/A |
-| `eglBindTexImage` | `bind_tex_image` | XXX: To be implemented. |
+| `eglBindTexImage` | N/A | Deferred. |
 
 **C**
 
 | EGL | Binding | Notes |
 |---- | ------- | ----- |
 | `eglChooseConfig` | `choose_config` | XXX: To be implemented.|
-| `eglClientWaitSync` | `client_wait_sync` | XXX: To be implemented. |
-| `eglCopyBuffers` | `copy_buffers` | XXX: Not implemented yet. |
+| `eglClientWaitSync` | N/A | Deferred. |
+| `eglCopyBuffers` | N/A | Deferred. |
 | `eglCreateContext` | `create_context` | N/A |
-| `eglCreateImage` | `create_image` | XXX: Not implemented yet. |
-| `eglCreatePbufferFromClientBuffer` | `create_pbuffer_from_client_buffer` | XXX: To be implemented. |
+| `eglCreateImage` | N/A | Deferred. |
+| `eglCreatePbufferFromClientBuffer` | N/A | Deferred. |
 | `eglCreatePbufferSurface` | `create_pbuffer_surface` | N/A |
-| `eglCreatePixmapSurface` | `create_pixmap_surface` | XXX: To be implemented. |
-| `eglCreatePlatformPixmapSurface` | `create_platform_pixmap_surface` | XXX: To be implemented. |
-| `eglCreatePlatformWindowSurface` | `create_platform_window_surface` | XXX: To be implemented. |
-| `eglCreateSync` | `create_sync` | XXX: To be implemented. |
+| `eglCreatePixmapSurface` | N/A | Deferred. |
+| `eglCreatePlatformPixmapSurface` | N/A | Deferred. |
+| `eglCreatePlatformWindowSurface` | N/A | Window surfaces stay `create_window_surface/4`. |
+| `eglCreateSync` | N/A | Deferred. |
 | `eglCreateWindowSurface` | `create_window_surface` | XXX: To be implemented. |
 
 **D**
@@ -63,9 +63,9 @@ their equivalent. If exceptions where to be made, it's in the notes.
 | EGL | Binding | Notes |
 |---- | ------- | ----- |
 | `eglDestroyContext` | `destroy_context` | N/A |
-| `eglDestroyImage` | `destroy_image` | N/A |
+| `eglDestroyImage` | N/A | Deferred. |
 | `eglDestroySurface` | `destroy_surface` | N/A |
-| `eglDestroySync` | `destroy_sync` | XXX: To be implemented. |
+| `eglDestroySync` | N/A | Deferred. |
 
 **G**
 
@@ -78,9 +78,9 @@ their equivalent. If exceptions where to be made, it's in the notes.
 | `eglGetCurrentSurface` | `get_current_surface` | N/A |
 | `eglGetDisplay` | `get_display` | N/A |
 | `eglGetError` | `get_error` | N/A |
-| `eglGetPlatformDisplay` | `get_platform_display` | XXX: Not implemented yet |
+| `eglGetPlatformDisplay` | `get_platform_display` | Platforms: `wayland`, `x11`, `angle`. Native display is `default_display` or an `egl_native_display` resource. Attrib list is `[]`. |
 | `eglGetProcAddress` | N/A | N/A |
-| `eglGetSyncAttrib` | `get_sync_attrib` | XXX: Not implemented yet |
+| `eglGetSyncAttrib` | N/A | Deferred. |
 
 **I**
 
@@ -107,7 +107,7 @@ their equivalent. If exceptions where to be made, it's in the notes.
 
 | EGL | Binding | Notes |
 |---- | ------- | ----- |
-| `eglReleaseTexImage` | `release_tex_image` | XXX: To be implemented. |
+| `eglReleaseTexImage` | N/A | Deferred. |
 | `eglReleaseThread` | `release_thread` | N/A |
 
 **S**
@@ -131,4 +131,4 @@ their equivalent. If exceptions where to be made, it's in the notes.
 | `eglWaitClient` | `wait_client` | N/A |
 | `eglWaitGL` | `wait_gl` | N/A |
 | `eglWaitNative` | `wait_native` | N/A |
-| `eglWaitSync` | `wait_sync` | XXX: To be implemented. |
+| `eglWaitSync` | N/A | Deferred. |

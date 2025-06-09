@@ -1,10 +1,28 @@
 #include <string.h>
+#include <stdlib.h>
 #include <assert.h>
 #include <erl_nif.h>
 #include <EGL/egl.h>
+#include <EGL/eglext.h>
 #include "command_executor.h"
 #include "context_map.h"
 #include "active_context_map.h"
+
+#ifndef EGL_PLATFORM_WAYLAND_KHR
+#define EGL_PLATFORM_WAYLAND_KHR 0x31D8
+#endif
+#ifndef EGL_PLATFORM_X11_KHR
+#define EGL_PLATFORM_X11_KHR 0x31D5
+#endif
+#ifndef EGL_PLATFORM_ANGLE_ANGLE
+#define EGL_PLATFORM_ANGLE_ANGLE 0x3202
+#endif
+
+#if defined(_WIN32)
+#define EXPORT_SYMBOL __declspec(dllexport)
+#else
+#define EXPORT_SYMBOL
+#endif
 
 static ErlNifResourceType* egl_display_resource_type = NULL;
 static ErlNifResourceType* egl_config_resource_type = NULL;
@@ -47,10 +65,15 @@ ERL_NIF_TERM egl_extensions_atom;
 
 ERL_NIF_TERM egl_core_native_engine_atom;
 
+ERL_NIF_TERM default_display_atom;
+ERL_NIF_TERM wayland_atom;
+ERL_NIF_TERM x11_atom;
+ERL_NIF_TERM angle_atom;
+
 static ContextMap* context_map = NULL;
 static ActiveContextMap active_context_map;
 
-ErlNifResourceType* get_egl_window_resource_type(ErlNifEnv* env) {
+extern EXPORT_SYMBOL ErlNifResourceType* get_egl_window_resource_type(ErlNifEnv* env) {
     static ErlNifResourceType* egl_window_resource_type = NULL;
     if (!egl_window_resource_type) {
         egl_window_resource_type = enif_open_resource_type(env, NULL, "egl_window", NULL, ERL_NIF_RT_CREATE, NULL);
@@ -63,11 +86,25 @@ ErlNifResourceType* get_egl_window_resource_type(ErlNifEnv* env) {
     return egl_window_resource_type;
 }
 
-ERL_NIF_TERM egl_execute_command(
+extern EXPORT_SYMBOL ErlNifResourceType* get_egl_native_display_resource_type(ErlNifEnv* env) {
+    static ErlNifResourceType* egl_native_display_resource_type = NULL;
+    if (!egl_native_display_resource_type) {
+        egl_native_display_resource_type = enif_open_resource_type(
+            env, NULL, "egl_native_display", NULL, ERL_NIF_RT_CREATE, NULL);
+
+        if (egl_native_display_resource_type == NULL) {
+            fprintf(stderr, "failed to open 'EGL native display' resource type\n");
+            return NULL;
+        }
+    }
+    return egl_native_display_resource_type;
+}
+
+extern EXPORT_SYMBOL ERL_NIF_TERM egl_execute_command(
     ERL_NIF_TERM (*function)(ErlNifEnv*, int, const ERL_NIF_TERM[]),
     ErlNifEnv* env,
     int argc,
-    ERL_NIF_TERM* argv[]
+    const ERL_NIF_TERM argv[]
 ) {
     // XXX: The caller should be able to know if the command was executed.
     //      Perhaps add some variations of this function to fallback on
@@ -151,6 +188,13 @@ static int nif_module_load(ErlNifEnv *env, void **priv_data, ERL_NIF_TERM arg)
         return -1;
     }
 
+    ErlNifResourceType* egl_native_display_resource_type =
+        get_egl_native_display_resource_type(env);
+    if (egl_native_display_resource_type == NULL) {
+        fprintf(stderr, "failed to get 'EGL native display' resource type\n");
+        return -1;
+    }
+
     egl_display_resource_type = enif_open_resource_type(env, NULL, "egl_display", egl_display_resource_dtor, ERL_NIF_RT_CREATE, NULL);
     if (egl_display_resource_type == NULL) {
         fprintf(stderr, "failed to open 'EGL display' resource type\n");
@@ -225,6 +269,11 @@ static int nif_module_load(ErlNifEnv *env, void **priv_data, ERL_NIF_TERM arg)
     egl_extensions_atom = enif_make_atom(env, "extensions");
 
     egl_core_native_engine_atom = enif_make_atom(env, "core_native_engine");
+
+    default_display_atom = enif_make_atom(env, "default_display");
+    wayland_atom = enif_make_atom(env, "wayland");
+    x11_atom = enif_make_atom(env, "x11");
+    angle_atom = enif_make_atom(env, "angle");
 
     context_map = context_map_create(4);
     if (context_map == NULL) {
@@ -326,6 +375,7 @@ static ERL_NIF_TERM nif_choose_config(ErlNifEnv* env, int argc, const ERL_NIF_TE
     }
 }
 
+#if 0
 static ERL_NIF_TERM nif_copy_buffers(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     (void)argc;
@@ -335,6 +385,7 @@ static ERL_NIF_TERM nif_copy_buffers(ErlNifEnv* env, int argc, const ERL_NIF_TER
 
     return enif_make_atom(env, "ok");
 }
+#endif
 
 static ERL_NIF_TERM nif_create_context(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
@@ -472,6 +523,7 @@ static ERL_NIF_TERM nif_create_pbuffer_surface(ErlNifEnv* env, int argc, const E
     }
 }
 
+#if 0
 static ERL_NIF_TERM nif_create_pixmap_surface(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     (void)argc;
@@ -481,6 +533,7 @@ static ERL_NIF_TERM nif_create_pixmap_surface(ErlNifEnv* env, int argc, const ER
 
     return enif_make_atom(env, "ok");
 }
+#endif
 
 static ERL_NIF_TERM nif_create_window_surface(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
@@ -505,7 +558,33 @@ static ERL_NIF_TERM nif_create_window_surface(ErlNifEnv* env, int argc, const ER
     }
     EGLNativeWindowType native_window = *((EGLNativeWindowType*)native_window_resource);
 
-    EGLSurface result = eglCreateWindowSurface(display, config, native_window, NULL);
+    ERL_NIF_TERM list = argv[3];
+    unsigned int list_length;
+    if (!enif_get_list_length(env, list, &list_length)) {
+        return enif_make_badarg(env);
+    }
+
+    EGLint* attrib_list = (EGLint*)malloc((list_length + 1) * sizeof(EGLint));
+    if (attrib_list == NULL) {
+        return enif_make_atom(env, "error_alloc");
+    }
+
+    ERL_NIF_TERM head, tail;
+    int value;
+    unsigned int i = 0;
+    while (enif_get_list_cell(env, list, &head, &tail)) {
+        if (!enif_get_int(env, head, &value)) {
+            free(attrib_list);
+            return enif_make_badarg(env);
+        }
+        attrib_list[i++] = (EGLint)value;
+        list = tail;
+    }
+    attrib_list[i] = EGL_NONE;
+
+    const EGLint* attribs = (list_length == 0) ? NULL : attrib_list;
+    EGLSurface result = eglCreateWindowSurface(display, config, native_window, attribs);
+    free(attrib_list);
     if (result == EGL_NO_SURFACE) {
         return not_ok_atom;
     }
@@ -704,10 +783,10 @@ static ERL_NIF_TERM nif_get_current_surface(ErlNifEnv* env, int argc, const ERL_
 static ERL_NIF_TERM nif_get_display(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     (void)argc;
-    (void)argv;
 
-    // XXX: First parameter must be read and used. Will be done in later
-    //      revisions.
+    if (!enif_is_identical(argv[0], default_display_atom)) {
+        return enif_make_badarg(env);
+    }
 
     EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
 
@@ -883,15 +962,11 @@ static ERL_NIF_TERM unbind_context_nif(ErlNifEnv* env, int argc, const ERL_NIF_T
         read = *((EGLSurface*)read_resource);
     }
 
-    EGLContext context = EGL_NO_CONTEXT;
-
-    EGLBoolean result = eglMakeCurrent(display, draw, read, context);
+    EGLBoolean result = eglMakeCurrent(display, draw, read, EGL_NO_CONTEXT);
     if (result == EGL_TRUE) {
-        // The state of active contexts has changed, we update our internal map
-        // to reflect this change.
-        bool success = active_context_map_remove_by_context(&active_context_map, context);
-        assert(success);
-
+        ErlNifPid pid;
+        enif_self(env, &pid);
+        active_context_map_remove_by_pid(&active_context_map, &pid);
         return ok_atom;
     }
     else {
@@ -907,20 +982,13 @@ static ERL_NIF_TERM nif_make_current(ErlNifEnv* env, int argc, const ERL_NIF_TER
     (void)argc;
 
     // We need to handle two requests: binding and unbinding a context.
-    if (enif_is_identical(argv[3], enif_make_atom(env, "no_context"))) {
-        // This is a "unbind" request. According to the documentation, it must
-        // be run on the OS thread that has the context bound to it. If the
-        // BEAM process has no context bound to it, we do nothing and print a
-        // warning for now.
-        // Note: we let the function update the active context map.
-        // XXX: It will probably changed. It also needs to be tested/verified.
-
+    if (enif_is_identical(argv[3], egl_no_context_atom)) {
         ErlNifPid pid;
         enif_self(env, &pid);
 
         EGLContext* context = active_context_map_find_by_pid(&active_context_map, &pid);
         if (context != NULL) {
-            CommandExecutor* command_executor = context_map_get(context_map, context);
+            CommandExecutor* command_executor = context_map_get(context_map, *context);
             assert(command_executor != NULL);
 
             ERL_NIF_TERM result;
@@ -934,9 +1002,7 @@ static ERL_NIF_TERM nif_make_current(ErlNifEnv* env, int argc, const ERL_NIF_TER
             );
             return result;
         }
-        else {
-            return enif_make_atom(env, "no_context_bound_xxx");
-        }
+        return ok_atom;
     }
     else {
         // This is a "bind" request. We execute it on the OS thread associated
@@ -1167,6 +1233,7 @@ static ERL_NIF_TERM nif_wait_native(ErlNifEnv* env, int argc, const ERL_NIF_TERM
     }
 }
 
+#if 0
 static ERL_NIF_TERM nif_bind_tex_image(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     (void)argc;
@@ -1186,6 +1253,7 @@ static ERL_NIF_TERM nif_release_tex_image(ErlNifEnv* env, int argc, const ERL_NI
 
     return enif_make_atom(env, "ok");
 }
+#endif
 
 static ERL_NIF_TERM nif_surface_attrib(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
@@ -1273,6 +1341,7 @@ static ERL_NIF_TERM nif_query_api(ErlNifEnv* env, int argc, const ERL_NIF_TERM a
     return enif_make_int(env, result);
 }
 
+#if 0
 static ERL_NIF_TERM nif_create_pbuffer_from_client_buffer(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     (void)argc;
@@ -1282,6 +1351,7 @@ static ERL_NIF_TERM nif_create_pbuffer_from_client_buffer(ErlNifEnv* env, int ar
 
     return enif_make_atom(env, "ok");
 }
+#endif
 
 static ERL_NIF_TERM nif_release_thread(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
@@ -1330,6 +1400,7 @@ static ERL_NIF_TERM nif_get_current_context(ErlNifEnv* env, int argc, const ERL_
     }
 }
 
+#if 0
 static ERL_NIF_TERM nif_create_sync(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     (void)argc;
@@ -1389,17 +1460,59 @@ static ERL_NIF_TERM nif_destroy_image(ErlNifEnv* env, int argc, const ERL_NIF_TE
 
     return enif_make_atom(env, "ok");
 }
+#endif
 
 static ERL_NIF_TERM nif_get_platform_display(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     (void)argc;
-    (void)argv;
 
-    // EGLAPI EGLDisplay EGLAPIENTRY eglGetPlatformDisplay (EGLenum platform, void *native_display, const EGLAttrib *attrib_list);
+    EGLenum platform;
+    if (enif_is_identical(argv[0], wayland_atom)) {
+        platform = EGL_PLATFORM_WAYLAND_KHR;
+    } else if (enif_is_identical(argv[0], x11_atom)) {
+        platform = EGL_PLATFORM_X11_KHR;
+    } else if (enif_is_identical(argv[0], angle_atom)) {
+        platform = EGL_PLATFORM_ANGLE_ANGLE;
+    } else {
+        return enif_make_badarg(env);
+    }
 
-    return enif_make_atom(env, "ok");
+    void* native_display;
+    if (enif_is_identical(argv[1], default_display_atom)) {
+        native_display = EGL_DEFAULT_DISPLAY;
+    } else {
+        ErlNifResourceType* native_display_resource_type =
+            get_egl_native_display_resource_type(env);
+        void* native_display_resource;
+        if (!enif_get_resource(
+                env,
+                argv[1],
+                native_display_resource_type,
+                &native_display_resource
+            )) {
+            return enif_make_badarg(env);
+        }
+        native_display = *((void**)native_display_resource);
+    }
+
+    unsigned attrib_length;
+    if (!enif_get_list_length(env, argv[2], &attrib_length) || attrib_length != 0) {
+        return enif_make_badarg(env);
+    }
+
+    EGLDisplay display = eglGetPlatformDisplay(platform, native_display, NULL);
+    if (display == EGL_NO_DISPLAY) {
+        return egl_no_display_atom;
+    }
+
+    void* display_resource = enif_alloc_resource(egl_display_resource_type, sizeof(EGLDisplay));
+    *((EGLDisplay*)display_resource) = display;
+    ERL_NIF_TERM term = enif_make_resource(env, display_resource);
+    enif_release_resource(display_resource);
+    return term;
 }
 
+#if 0
 static ERL_NIF_TERM nif_create_platform_window_surface(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     (void)argc;
@@ -1429,15 +1542,16 @@ static ERL_NIF_TERM nif_wait_sync(ErlNifEnv* env, int argc, const ERL_NIF_TERM a
 
     return enif_make_atom(env, "ok");
 }
+#endif
 
 static ErlNifFunc nif_functions[] = {
     // EGL 1.0
     {"choose_config_raw", 2, nif_choose_config, 0},
-    {"copy_buffers", 3, nif_copy_buffers, 0},
+    // {"copy_buffers", 3, nif_copy_buffers, 0},
     {"create_context_raw", 4, nif_create_context, 0},
     {"create_pbuffer_surface_raw", 3, nif_create_pbuffer_surface, 0},
-    {"create_pixmap_surface", 4, nif_create_pixmap_surface, 0},
-    {"create_window_surface_raw", 3, nif_create_window_surface, 0},
+    // {"create_pixmap_surface", 4, nif_create_pixmap_surface, 0},
+    {"create_window_surface_raw", 4, nif_create_window_surface, 0},
     {"destroy_context", 2, nif_destroy_context, 0},
     {"destroy_surface", 2, nif_destroy_surface, 0},
     {"get_config_attrib_raw", 3, nif_get_config_attrib, 0},
@@ -1448,7 +1562,7 @@ static ErlNifFunc nif_functions[] = {
     {"get_error", 0, nif_get_error, 0},
     {"initialize", 1, nif_initialize, 0},
     {"make_current", 4, nif_make_current, 0},
-    {"query_context_raw", 4, nif_query_context, 0},
+    {"query_context_raw", 3, nif_query_context, 0},
     {"query_string", 2, nif_query_string, 0},
     {"query_surface_raw", 3, nif_query_surface, 0},
     {"swap_buffers", 2, nif_swap_buffers, 0},
@@ -1456,29 +1570,29 @@ static ErlNifFunc nif_functions[] = {
     {"wait_gl", 0, nif_wait_gl, 0},
     {"wait_native", 1, nif_wait_native, 0},
     // EGL 1.1
-    {"bind_tex_image", 3, nif_bind_tex_image, 0},
-    {"release_tex_image", 3, nif_release_tex_image, 0},
+    // {"bind_tex_image", 3, nif_bind_tex_image, 0},
+    // {"release_tex_image", 3, nif_release_tex_image, 0},
     {"surface_attrib_raw", 4, nif_surface_attrib, 0},
     {"swap_interval", 2, nif_swap_interval, 0},
     // EGL 1.2
     {"bind_api_raw", 1, nif_bind_api, 0},
     {"query_api_raw", 0, nif_query_api, 0},
-    {"create_pbuffer_from_client_buffer", 5, nif_create_pbuffer_from_client_buffer, 0},
+    // {"create_pbuffer_from_client_buffer", 5, nif_create_pbuffer_from_client_buffer, 0},
     {"release_thread", 0, nif_release_thread, 0},
     {"wait_client", 0, nif_wait_client, 0},
     // EGL 1.4
     {"get_current_context", 0, nif_get_current_context, 0},
     // EGL 1.5
-    {"create_sync", 3, nif_create_sync, 0},
-    {"destroy_sync", 2, nif_destroy_sync, 0},
-    {"client_wait_sync", 4, nif_client_wait_sync, 0},
-    {"get_sync_attrib", 4, nif_get_sync_attrib, 0},
-    {"create_image", 5, nif_create_image, 0},
-    {"destroy_image", 2, nif_destroy_image, 0},
+    // {"create_sync", 3, nif_create_sync, 0},
+    // {"destroy_sync", 2, nif_destroy_sync, 0},
+    // {"client_wait_sync", 4, nif_client_wait_sync, 0},
+    // {"get_sync_attrib", 4, nif_get_sync_attrib, 0},
+    // {"create_image", 5, nif_create_image, 0},
+    // {"destroy_image", 2, nif_destroy_image, 0},
     {"get_platform_display", 3, nif_get_platform_display, 0},
-    {"create_platform_window_surface", 4, nif_create_platform_window_surface, 0},
-    {"create_platform_pixmap_surface", 4, nif_create_platform_pixmap_surface, 0},
-    {"wait_sync", 3, nif_wait_sync, 0}
+    // {"create_platform_window_surface", 4, nif_create_platform_window_surface, 0},
+    // {"create_platform_pixmap_surface", 4, nif_create_platform_pixmap_surface, 0},
+    // {"wait_sync", 3, nif_wait_sync, 0}
 };
 
 ERL_NIF_INIT(

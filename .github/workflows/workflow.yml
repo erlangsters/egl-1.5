@@ -16,14 +16,41 @@ jobs:
         with:
           erlang-version: 28
           install-rebar3: true
-      - run: rebar3 compile
+      - run: |
+          rebar3 compile
+          rebar3 eunit -m egl_get_display_test
 
-  # macos: % XXX: Will require ANGLE
-  #   runs-on: macos-latest
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - uses: erlangsters/setup-erlang@v1
-  #       with:
-  #         erlang-version: 28
-  #         install-rebar3: true
-  #     - run: rebar3 compile
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlangsters/setup-erlang@v1
+        with:
+          erlang-version: 28
+          install-rebar3: true
+      - id: angle
+        uses: erlangsters/setup-angle@v1
+      - run: |
+          export ANGLE_INCLUDE_DIR="${{ steps.angle.outputs.angle-location }}/include"
+          export ANGLE_LIB_DIR="${{ steps.angle.outputs.angle-location }}/lib"
+          rebar3 compile
+          rebar3 eunit -m egl_get_display_test
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlangsters/setup-erlang@v1
+        with:
+          erlang-version: 28
+          install-rebar3: true
+      - id: angle
+        uses: erlangsters/setup-angle@v1
+      - run: |
+          $angleLocation = "${{ steps.angle.outputs.angle-location }}"
+          $env:ANGLE_INCLUDE_DIR = "$angleLocation\include"
+          $env:ANGLE_LIB_DIR = "$angleLocation\lib"
+          rebar3 compile
+          $env:Path = "$angleLocation\bin;$env:Path"
+          rebar3 eunit -m egl_get_display_test
+        shell: pwsh
