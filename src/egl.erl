@@ -8,6 +8,67 @@
 %% Written by Jonathan De Wachter <jonathan.dewachter@byteplug.io>
 %%
 -module(egl).
+-moduledoc """
+EGL 1.5 binding.
+
+It implements an idiomatic binding to the GLFW library.
+
+> The API was minimally adjusted, in obvious ways, to be more idiomatic to work
+> in Erlang and Elixir. Your EGL knowledge remains entirely applicable.
+
+```erlang
+Display = egl:get_display(default_display).
+{ok, {_, _}} = egl:initialize(Display).
+
+ConfigAttribs = [
+    {surface_type, [window_bit]},
+    {renderable_type, [opengl_bit]}
+].
+{ok, Configs} = egl:choose_config(Display, ConfigAttribs).
+Config = hd(Configs).
+
+ContextAttribs = [
+    {context_major_version, 3}
+].
+{ok, Context} =
+    egl:create_context(Display, Config, no_context, ContextAttribs).
+
+XXX: create surface
+
+ok = egl:make_current(Display, Surface, Surface, Context).
+```
+
+> It's often used with the GLFW binding
+>
+> ```erlang
+> {ok, Window} = glfw:create_window(640, 480, "Hello, World!"),
+> WindowHandle = glfw:window_egl_handle(Window).
+> {ok, Surface} = egl:create_window_surface(Display, Config, WindowHandle, []).
+% egl_debug:display_error_if_any(create_window_surface).
+> ```
+>
+> Blabla.
+
+
+For more example code, the demo tests and test suites in the repository are
+good place, to find example. xxx
+
+If you're confused about the API and how a GLFW feature translates in this
+binding, consult the [API mapping](docs/api-mapping.md) document, which
+document every aspect of it.
+
+Note that it tries to follow the same mapping conventions as the OpenGL bindings
+and the GLFW binding.
+
+The EGL objects are represented as Erlang references.
+xxx: talk about memory management.
+
+Unlike the OpenGL APIs, EGL does not have a "enum" type which is nicely mapped
+to Erlang atoms. However, the concept of "enum" is still present in the API .
+
+Another source of reference is the
+[test suites](https://github.com/erlangsters/egl-1.5/tree/master/test)
+""".
 
 -export_type([
     display/0,
@@ -284,14 +345,26 @@
 -define(EGL_GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, 16#30B8).
 -define(EGL_IMAGE_PRESERVED, 16#30D2).
 
+-doc("""
+An EGLDisplay object.
+
+It's a reference to an EGL display connection.
+""").
 -type display() :: reference().
+-doc("EGLConfig").
 -type config() :: reference().
+-doc("EGLSurface").
 -type surface() :: reference().
+-doc("EGLContext").
 -type context() :: reference().
+-doc("EGLClientBuffer").
 -type client_buffer() :: reference().
+-doc("EGLSync").
 -type sync() :: reference().
+-doc("EGLImage").
 -type image() :: reference().
 
+-doc("To be written.").
 -type config_attrib() ::
     alpha_size |
     alpha_mask_size |
@@ -327,6 +400,7 @@
     transparent_blue_value
 .
 
+-doc("To be written.").
 -type config_attribs_list() :: [
     {alpha_mask_size, pos_integer()} |
     {alpha_size, pos_integer()} |
@@ -361,6 +435,7 @@
     {transparent_blue_value, dont_care | pos_integer()}
 ].
 
+-doc("To be written.").
 -type surface_attribs_list() :: [
     {gl_colorspace, gl_colorspace_srgb | gl_colorspace_linear} |
     {height, pos_integer()} |
@@ -372,6 +447,7 @@
     {vg_colorspace, vg_colorspace_srgb | vg_colorspace_linear} |
     {width, pos_integer()}
 ].
+-doc("To be written.").
 -type surface_attrib_get() ::
     config_id |
     gl_colorspace |
@@ -391,11 +467,13 @@
     vg_colorspace |
     width
 .
+-doc("To be written.").
 -type surface_attrib_set() ::
     mipmap_level |
     multisample_resolve |
     swap_behavior
 .
+-doc("To be written.").
 -type context_attribs_list() :: [
     {context_major_version, pos_integer()} |
     {context_minor_version, pos_integer()} |
@@ -409,6 +487,7 @@
         no_reset_notification | lose_context_on_reset
     }
 ].
+-doc("To be written.").
 -type context_attrib_get() ::
     config_id |
     context_client_type |
@@ -421,12 +500,14 @@ init() ->
     NifPath = filename:join(PrivDir, "beam-egl"),
     ok = erlang:load_nif(NifPath, 0).
 
-%%
-%% eglChooseConfig — return a list of EGL frame buffer configurations that match specified attributes
-%%
-%% - foo
-%% - bar
-%%
+-doc("""
+Return a list of EGL frame buffer configurations that match specified
+attributes.
+
+It implements the `eglChooseConfig()` function. Read the documentation of the
+[C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglChooseConfig.xhtml)
+for more information.
+""").
 -spec choose_config(display(), config_attribs_list()) ->
     {ok, [config()]} | not_ok.
 choose_config(Display, AttribsList) ->
@@ -564,15 +645,23 @@ choose_config(Display, AttribsList) ->
 choose_config_raw(_Display, _AttribsList) ->
     erlang:nif_error(nif_library_not_loaded).
 
+-doc("""
+Copy EGL surface color buffer to a native pixmap.
+
+It implements the `eglCopyBuffers()` function. Read the documentation of the
+[C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglCopyBuffers.xhtml)
+for more information.
+""").
 copy_buffers(_A, _B, _C) ->
     erlang:nif_error(nif_library_not_loaded).
 
-%%
-%% eglCreateContext — create a new EGL rendering context
-%%
-%% - foo
-%% - bar
-%%
+-doc("""
+Create a new EGL rendering context.
+
+It implements the `eglCreateContext()` function. Read the documentation of the
+[C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglCreateContext.xhtml)
+for more information.
+""").
 -spec create_context(display(), config(), no_context | context(), context_attribs_list()) ->
     {ok, context()} | not_ok.
 create_context(Display, Config, ShareContext, AttribsList) ->
@@ -620,12 +709,13 @@ create_context(Display, Config, ShareContext, AttribsList) ->
 create_context_raw(_Display, _Config, _ShareContext, _AttribsList) ->
     erlang:nif_error(nif_library_not_loaded).
 
-%%
-%% eglCreatePbufferSurface — create a new EGL pixel buffer surface
-%%
-%% - foo
-%% - bar
-%%
+-doc("""
+Create a new EGL pixel buffer surface.
+
+It implements the `eglCreatePbufferSurface()` function. Read the documentation of the
+[C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglCreatePbufferSurface.xhtml)
+for more information.
+""").
 -spec create_pbuffer_surface(display(), config(), surface_attribs_list()) ->
     {ok, surface()} | not_ok.
 create_pbuffer_surface(Display, Config, AttribsList) ->
@@ -685,38 +775,56 @@ create_pbuffer_surface(Display, Config, AttribsList) ->
 create_pbuffer_surface_raw(_Display, _Config, _AttribsList) ->
     erlang:nif_error(nif_library_not_loaded).
 
+-doc("""
+Create a new EGL offscreen surface.
+
+It implements the `eglCreatePixmapSurface()` function. Read the documentation of the
+[C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglCreatePixmapSurface.xhtml)
+for more information.
+""").
 create_pixmap_surface(_A, _B, _C, _D) ->
     erlang:nif_error(nif_library_not_loaded).
 
+-doc("""
+Create a new EGL window surface.
+
+It implements the `eglCreateWindowSurface()` function. Read the documentation of the
+[C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglCreateWindowSurface.xhtml)
+for more information.
+""").
 create_window_surface(_A, _B, _C, _D) ->
+
     erlang:nif_error(nif_library_not_loaded).
 
-%%
-%% eglDestroyContext — destroy an EGL rendering context
-%%
-%% - foo
-%% - bar
-%%
+-doc("""
+Destroy an EGL rendering context.
+
+It implements the `eglDestroyContext()` function. Read the documentation of the
+[C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglDestroyContext.xhtml)
+for more information.
+""").
 -spec destroy_context(display(), context()) -> ok | not_ok.
 destroy_context(_Display, _Context) ->
     erlang:nif_error(nif_library_not_loaded).
 
-%%
-%% eglDestroySurface — destroy an EGL surface
-%%
-%% - foo
-%% - bar
-%%
+-doc("""
+Destroy an EGL surface.
+
+It implements the `eglDestroySurface()` function. Read the documentation of the
+[C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglDestroySurface.xhtml)
+for more information.
+""").
 -spec destroy_surface(display(), surface()) -> ok | not_ok.
 destroy_surface(_Dislay, _Surface) ->
     erlang:nif_error(nif_library_not_loaded).
 
-%%
-%% eglGetConfigAttrib — return information about an EGL frame buffer configuration
-%%
-%% - foo
-%% - bar
-%%
+-doc("""
+Return information about an EGL frame buffer configuration.
+
+It implements the `eglGetConfigAttrib()` function. Read the documentation of the
+[C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglGetConfigAttrib.xhtml)
+for more information.
+""").
 -spec get_config_attrib(display(), config(), config_attrib()) ->
     {ok, term()} | not_ok.
 get_config_attrib(Display, Config, Attribute) ->
@@ -869,32 +977,35 @@ get_config_attrib(Display, Config, Attribute) ->
 get_config_attrib_raw(_Display, _Config, _Attribute) ->
     erlang:nif_error(nif_library_not_loaded).
 
-%%
-%% eglGetConfigs — return a list of all EGL frame buffer configurations for a display
-%%
-%% - foo
-%% - bar
-%%
+-doc("""
+Return a list of all EGL frame buffer configurations for a display.
+
+It implements the `eglGetConfigs()` function. Read the documentation of the
+[C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglGetConfigs.xhtml)
+for more information.
+""").
 -spec get_configs(display()) -> {ok, [config()]} | not_ok.
 get_configs(_Display) ->
     erlang:nif_error(nif_library_not_loaded).
 
-%%
-%% eglGetCurrentDisplay — return the display for the current EGL rendering context
-%%
-%% - foo
-%% - bar
-%%
+-doc("""
+Return the display for the current EGL rendering context.
+
+It implements the `eglGetCurrentDisplay()` function. Read the documentation of the
+[C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglGetCurrentDisplay.xhtml)
+for more information.
+""").
 -spec get_current_display() -> no_display | display().
 get_current_display() ->
     erlang:nif_error(nif_library_not_loaded).
 
-%%
-%% eglGetCurrentSurface — return the read or draw surface for the current EGL rendering context
-%%
-%% - foo
-%% - bar
-%%
+-doc("""
+Return the read or draw surface for the current EGL rendering context.
+
+It implements the `eglGetCurrentSurface()` function. Read the documentation of the
+[C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglGetCurrentSurface.xhtml)
+for more information.
+""").
 -spec get_current_surface(read | draw) -> no_surface | surface().
 get_current_surface(ReadDraw) ->
     ReadDrawRaw = case ReadDraw of
@@ -906,23 +1017,28 @@ get_current_surface(ReadDraw) ->
 get_current_surface_raw(_ReadDraw) ->
     erlang:nif_error(nif_library_not_loaded).
 
-%%
-%% eglGetDisplay — return an EGL display connection
-%%
-%% - Parameter must be 'default_display'.
-%%
-%% XXX: First parameter must be reworked.
-%%
+-doc("""
+Return an EGL display connection.
+
+- Parameter must be 'default_display'.
+XXX: First parameter must be reworked.
+XXX: parameter must be reworked.
+
+It implements the `eglGetDisplay()` function. Read the documentation of the
+[C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglGetDisplay.xhtml)
+for more information.
+""").
 -spec get_display(default_display) -> no_display | display().
 get_display(_NativeDisplay) ->
     erlang:nif_error(nif_library_not_loaded).
 
-%%
-%% eglGetError — return error information
-%%
-%% - foo
-%% - bar
-%%
+-doc("""
+Return error information.
+
+It implements the `eglGetError()` function. Read the documentation of the
+[C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglGetError.xhtml)
+for more information.
+""").
 -spec get_error() ->
     success |
     not_initialized |
@@ -942,22 +1058,27 @@ get_display(_NativeDisplay) ->
 get_error() ->
     erlang:nif_error(nif_library_not_loaded).
 
-%%
-%% eglInitialize — initialize an EGL display connection
-%%
-%% - Unlike original C function, it returns EGL version.
-%% - bar
-%%
+-doc("""
+Initialize an EGL display connection.
+
+- Unlike original C function, it returns EGL version.
+- bar
+
+It implements the `eglInitialize()` function. Read the documentation of the
+[C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglInitialize.xhtml)
+for more information.
+""").
 -spec initialize(display()) -> {ok, {pos_integer(), pos_integer()}} | not_ok.
 initialize(_Display) ->
     erlang:nif_error(nif_library_not_loaded).
 
-%%
-%% eglMakeCurrent — attach an EGL rendering context to EGL surfaces
-%%
-%% - foo
-%% - bar
-%%
+-doc("""
+Attach an EGL rendering context to EGL surfaces.
+
+It implements the `eglMakeCurrent()` function. Read the documentation of the
+[C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglMakeCurrent.xhtml)
+for more information.
+""").
 -spec make_current(
     display(),
     no_surface | surface(),
@@ -967,12 +1088,13 @@ initialize(_Display) ->
 make_current(_Display, _Draw, _Read, _Context) ->
     erlang:nif_error(nif_library_not_loaded).
 
-%%
-%% eglQueryContext — return EGL rendering context information
-%%
-%% - foo
-%% - bar
-%%
+-doc("""
+Return EGL rendering context information.
+
+It implements the `eglQueryContext()` function. Read the documentation of the
+[C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglQueryContext.xhtml)
+for more information.
+""").
 -spec query_context(display(), context(), context_attrib_get()) ->
     {ok, term()} | not_ok.
 query_context(Display, Context, Attribute) ->
@@ -1011,12 +1133,14 @@ query_context(Display, Context, Attribute) ->
 query_context_raw(_Display, _Context, _Attribute) ->
     erlang:nif_error(nif_library_not_loaded).
 
-%%
-%% eglQueryString — return a string describing properties of the EGL client or of an EGL display connection
-%%
-%% - foo
-%% - bar
-%%
+-doc("""
+Return a string describing properties of the EGL client or of an EGL display
+connection.
+
+It implements the `eglQueryString()` function. Read the documentation of the
+[C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglQueryString.xhtml)
+for more information.
+""").
 -spec query_string(
     no_display | display(),
     client_apis | vendor | version | extensions
@@ -1024,12 +1148,13 @@ query_context_raw(_Display, _Context, _Attribute) ->
 query_string(_Display, _Name) ->
     erlang:nif_error(nif_library_not_loaded).
 
-%%
-%% eglQuerySurface — return EGL surface information
-%%
-%% - foo
-%% - bar
-%%
+-doc("""
+Return EGL surface information.
+
+It implements the `eglQuerySurface()` function. Read the documentation of the
+[C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglQuerySurface.xhtml)
+for more information.
+""").
 -spec query_surface(display(), surface(), surface_attrib_get()) ->
     {ok, term()} | not_ok.
 query_surface(Display, Surface, Attribute) ->
@@ -1127,58 +1252,77 @@ query_surface(Display, Surface, Attribute) ->
 query_surface_raw(_Display, _Surface, _Attribute) ->
     erlang:nif_error(nif_library_not_loaded).
 
-%%
-%% eglSwapBuffers — post EGL surface color buffer to a native window
-%%
-%% - foo.
-%% - bar
-%%
+-doc("""
+Post EGL surface color buffer to a native window.
+
+It implements the `eglSwapBuffers()` function. Read the documentation of the
+[C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglSwapBuffers.xhtml)
+for more information.
+""").
 -spec swap_buffers(display(), surface()) -> ok | not_ok.
 swap_buffers(_Display, _Surface) ->
     erlang:nif_error(nif_library_not_loaded).
 
-%%
-%% eglTerminate — terminate an EGL display connection
-%%
-%% - foo.
-%% - bar
-%%
+-doc("""
+Terminate an EGL display connection.
+
+It implements the `eglTerminate()` function. Read the documentation of the
+[C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglTerminate.xhtml)
+for more information.
+""").
 -spec terminate(display()) -> ok | not_ok.
 terminate(_A) ->
     erlang:nif_error(nif_library_not_loaded).
 
-%%
-%% eglWaitGL — Complete GL execution prior to subsequent native rendering calls
-%%
-%% - foo
-%% - bar
-%%
+-doc("""
+Complete GL execution prior to subsequent native rendering calls.
+
+It implements the `eglWaitGL()` function. Read the documentation of the
+[C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglWaitGL.xhtml)
+for more information.
+""").
 -spec wait_gl() -> ok | not_ok.
 wait_gl() ->
     erlang:nif_error(nif_library_not_loaded).
 
-%%
-%% eglWaitNative — complete native execution prior to subsequent GL rendering calls
-%%
-%% - foo
-%% - bar
-%%
+-doc("""
+Complete native execution prior to subsequent GL rendering calls.
+
+It implements the `eglWaitNative()` function. Read the documentation of the
+[C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglWaitNative.xhtml)
+for more information.
+""").
 -spec wait_native(core_native_engine) -> ok | not_ok.
 wait_native(_Engine) ->
     erlang:nif_error(nif_library_not_loaded).
 
+-doc("""
+Defines a two-dimensional texture image.
+
+It implements the `eglBindTexImage()` function. Read the documentation of the
+[C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglBindTexImage.xhtml)
+for more information.
+""").
 bind_tex_image(_A, _B, _C) ->
     erlang:nif_error(nif_library_not_loaded).
 
+-doc("""
+Releases a color buffer that is being used as a texture.
+
+It implements the `eglReleaseTexImage()` function. Read the documentation of the
+[C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglReleaseTexImage.xhtml)
+for more information.
+""").
 release_tex_image(_A, _B, _C) ->
     erlang:nif_error(nif_library_not_loaded).
 
-%%
-%% eglSurfaceAttrib — set an EGL surface attribute
-%%
-%% - foo
-%% - bar
-%%
+-doc("""
+Set an EGL surface attribute.
+
+It implements the `eglSurfaceAttrib()` function. Read the documentation of the
+[C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglSurfaceAttrib.xhtml)
+for more information.
+""").
 -spec surface_attrib(display(), surface(), surface_attrib_set(), term()) -> ok | not_ok.
 surface_attrib(Display, Surface, Attribute, Value) ->
     {RawAttribute, RawValue} = case
@@ -1203,22 +1347,25 @@ surface_attrib(Display, Surface, Attribute, Value) ->
 surface_attrib_raw(_Display, _Surface, _Attribute, _Value) ->
     erlang:nif_error(nif_library_not_loaded).
 
-%%
-%% eglSwapInterval — specifies the minimum number of video frame periods per buffer swap for the window associated with the current context.
-%%
-%% - foo.
-%% - bar
-%%
+-doc("""
+Specifies the minimum number of video frame periods per buffer swap for the
+window associated with the current context.
+
+It implements the `eglSwapInterval()` function. Read the documentation of the
+[C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglSwapInterval.xhtml)
+for more information.
+""").
 -spec swap_interval(display(), pos_integer()) -> ok | not_ok.
 swap_interval(_Display, _Interval) ->
     erlang:nif_error(nif_library_not_loaded).
 
-%%
-%% eglBindAPI — Set the current rendering API
-%%
-%% - foo
-%% - bar
-%%
+-doc("""
+Set the current rendering API.
+
+It implements the `eglBindAPI()` function. Read the documentation of the
+[C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglBindAPI.xhtml)
+for more information.
+""").
 -spec bind_api(opengl_api | opengl_es_api | openvg_api) -> ok | not_ok.
 bind_api(Api) ->
     ApiRaw = case Api of
@@ -1231,12 +1378,13 @@ bind_api(Api) ->
 bind_api_raw(_Api) ->
     erlang:nif_error(nif_library_not_loaded).
 
-%%
-%% eglQueryAPI — Query the current rendering API
-%%
-%% - foo
-%% - bar
-%%
+-doc("""
+Query the current rendering API.
+
+It implements the `eglQueryAPI()` function. Read the documentation of the
+[C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglQueryAPI.xhtml)
+for more information.
+""").
 -spec query_api() -> opengl_api | opengl_es_api | openvg_api | none.
 query_api() ->
     ApiRaw = query_api_raw(),
@@ -1250,66 +1398,146 @@ query_api() ->
 query_api_raw() ->
     erlang:nif_error(nif_library_not_loaded).
 
+-doc("""
+Create a new EGL pixel buffer surface bound to an OpenVG image.
+
+It implements the `eglCreatePbufferFromClientBuffer()` function. Read the documentation of the
+[C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglCreatePbufferFromClientBuffer.xhtml)
+for more information.
+""").
 create_pbuffer_from_client_buffer(_A, _B, _C, _D, _E) ->
     erlang:nif_error(nif_library_not_loaded).
 
-%%
-%% eglReleaseThread — Release EGL per-thread state
-%%
-%% - foo
-%% - bar
-%%
+-doc("""
+Release EGL per-thread state.
+
+It implements the `eglReleaseThread()` function. Read the documentation of the
+[C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglReleaseThread.xhtml)
+for more information.
+""").
 -spec release_thread() -> ok | not_ok.
 release_thread() ->
     erlang:nif_error(nif_library_not_loaded).
 
-%%
-%% eglWaitClient — Complete client API execution prior to subsequent native rendering calls
-%%
-%% - foo
-%% - bar
-%%
+-doc("""
+Complete client API execution prior to subsequent native rendering calls.
+
+It implements the `eglWaitClient()` function. Read the documentation of the
+[C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglWaitClient.xhtml)
+for more information.
+""").
 -spec wait_client() -> ok | not_ok.
 wait_client() ->
     erlang:nif_error(nif_library_not_loaded).
 
-%%
-%% eglGetCurrentContext — return the current EGL rendering context
-%%
-%% - foo
-%% - bar
-%%
+-doc("""
+Return the current EGL rendering context.
+
+It implements the `eglGetCurrentContext()` function. Read the documentation of the
+[C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglGetCurrentContext.xhtml)
+for more information.
+""").
 -spec get_current_context() -> no_context | context().
 get_current_context() ->
     erlang:nif_error(nif_library_not_loaded).
 
+-doc("""
+Create a new EGL sync object.
+
+It implements the `eglCreateSync()` function. Read the documentation of the
+[C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglCreateSync.xhtml)
+for more information.
+""").
 create_sync(_A, _B, _C) ->
     erlang:nif_error(nif_library_not_loaded).
 
+-doc("""
+Destroy a sync object.
+
+It implements the `eglDestroySync()` function. Read the documentation of the
+[C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglDestroySync.xhtml)
+for more information.
+""").
 destroy_sync(_A, _B) ->
     erlang:nif_error(nif_library_not_loaded).
 
+-doc("""
+Wait in the client for a sync object to be signalled.
+
+It implements the `eglClientWaitSync()` function. Read the documentation of the
+[C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglClientWaitSync.xhtml)
+for more information.
+""").
 client_wait_sync(_A, _B, _C, _D) ->
     erlang:nif_error(nif_library_not_loaded).
 
+-doc("""
+Return an attribute of a sync object.
+
+It implements the `eglGetSyncAttrib()` function. Read the documentation of the
+[C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglGetSyncAttrib.xhtml)
+for more information.
+""").
 get_sync_attrib(_A, _B, _C, _D) ->
     erlang:nif_error(nif_library_not_loaded).
 
+-doc("""
+Create a new EGLImage object.
+
+It implements the `eglCreateImage()` function. Read the documentation of the
+[C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglCreateImage.xhtml)
+for more information.
+""").
 create_image(_A, _B, _C, _D, _E) ->
     erlang:nif_error(nif_library_not_loaded).
 
+-doc("""
+Destroy an EGLImage object.
+
+It implements the `eglDestroyImage()` function. Read the documentation of the
+[C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglDestroyImage.xhtml)
+for more information.
+""").
 destroy_image(_A, _B) ->
     erlang:nif_error(nif_library_not_loaded).
 
+-doc("""
+Return an EGL display connection.
+
+It implements the `eglGetPlatformDisplay()` function. Read the documentation of the
+[C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglGetPlatformDisplay.xhtml)
+for more information.
+""").
 get_platform_display(_A, _B, _C) ->
     erlang:nif_error(nif_library_not_loaded).
 
+-doc("""
+Create a new EGL on-screen rendering surface.
+
+It implements the `eglCreatePlatformWindowSurface()` function. Read the documentation of the
+[C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglCreatePlatformWindowSurface.xhtml)
+for more information.
+""").
 create_platform_window_surface(_A, _B, _C, _D) ->
     erlang:nif_error(nif_library_not_loaded).
 
+-doc("""
+Create a new EGL offscreen surface.
+
+It implements the `eglCreatePlatformPixmapSurface()` function. Read the documentation of the
+[C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglCreatePlatformPixmapSurface.xhtml)
+for more information.
+""").
 create_platform_pixmap_surface(_A, _B, _C, _D) ->
     erlang:nif_error(nif_library_not_loaded).
 
+-doc("""
+Wait in the server for a sync object to be signalled.
+
+It implements the `eglWaitSync()` function. Read the documentation of the
+[C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglWaitSync.xhtml)
+for more information.
+""").
 wait_sync(_A, _B, _C) ->
     erlang:nif_error(nif_library_not_loaded).
 
