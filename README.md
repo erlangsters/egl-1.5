@@ -135,3 +135,7 @@ It's as simple as that.
 It also means that there is no magic. All thread-safety concerns (and their
 associated complexity) still apply in your code. The only difference is that
 it's easier to write concurrent code in Erlang and Elixir.
+
+For a more comprehensive explanation of the employed technique to solve the
+conundrum, consult this
+[document](https://erlangsters.github.io/egl-1-5/doc/opengl-context-conundrum.html).
