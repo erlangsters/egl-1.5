@@ -110,6 +110,8 @@ static int nif_module_load(ErlNifEnv *env, void **priv_data, ERL_NIF_TERM arg)
         fprintf(stderr, "failed to open 'EGL window' resource type\n");
         return -1;
     }
+    fprintf(stderr, "[beam-egl.so] egl_window_resource_type = %p\n", (void*)egl_window_resource_type);
+    
     egl_pixmap_resource_type = enif_open_resource_type(env, NULL, "egl_pixmap", NULL, ERL_NIF_RT_CREATE, NULL);
     if (egl_pixmap_resource_type == NULL) {
         fprintf(stderr, "failed to open 'EGL pixmap' resource type\n");
