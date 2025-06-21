@@ -133,7 +133,7 @@ Another source of reference is the
     create_context_raw/4,
     create_pbuffer_surface_raw/3,
     create_pixmap_surface/4,
-    create_window_surface/4,
+    create_window_surface_raw/3,
     destroy_context/2,
     destroy_surface/2,
     get_config_attrib_raw/3,
@@ -792,8 +792,10 @@ It implements the `eglCreateWindowSurface()` function. Read the documentation of
 [C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglCreateWindowSurface.xhtml)
 for more information.
 """).
-create_window_surface(_A, _B, _C, _D) ->
+create_window_surface(Display, Config, NativeWindow, _AttribsList) ->
+    create_window_surface_raw(Display, Config, NativeWindow).
 
+create_window_surface_raw(_A, _B, _C) ->
     erlang:nif_error(nif_library_not_loaded).
 
 -doc("""
@@ -1198,7 +1200,9 @@ query_surface(Display, Surface, Attribute) ->
                 mipmap_texture ->
                     case ValueRaw of
                         ?EGL_TRUE -> true;
-                        ?EGL_FALSE -> false
+                        ?EGL_FALSE -> false;
+                        % XXX: Apparently it could be -1 ?
+                        _ -> ValueRaw
                     end;
                 multisample_resolve ->
                     case ValueRaw of
@@ -1222,12 +1226,16 @@ query_surface(Display, Surface, Attribute) ->
                     case ValueRaw of
                         ?EGL_NO_TEXTURE -> no_texture;
                         ?EGL_TEXTURE_RGB -> texture_rgb;
-                        ?EGL_TEXTURE_RGBA -> texture_rgba
+                        ?EGL_TEXTURE_RGBA -> texture_rgba;
+                        % XXX: Apparently this could have other values?? i'm getting value 12437
+                        _ -> ValueRaw
                     end;
                 texture_target ->
                     case ValueRaw of
                         ?EGL_NO_TEXTURE -> no_texture;
-                        ?EGL_TEXTURE_2D -> texture_2d
+                        ?EGL_TEXTURE_2D -> texture_2d;
+                        % XXX: Apparently this could have other values?? i'm getting value 12437
+                        _ -> ValueRaw
                     end;
                 vertical_resolution ->
                     ValueRaw;
