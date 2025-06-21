@@ -16,7 +16,7 @@ CFLAGS += -fPIC -I $(ERTS_INCLUDE_DIR) -I $(ERL_INTERFACE_INCLUDE_DIR)
 LDLIBS += -L $(ERL_INTERFACE_LIB_DIR) -lei -lEGL
 LDFLAGS += -shared
 
-SOURCES = egl.c
+SOURCES = egl.c command_executor.c
 OBJECTS = $(SOURCES:.c=.o)
 TARGET = ../priv/beam-egl.so
 
