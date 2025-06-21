@@ -38,7 +38,6 @@ ERL_NIF_TERM false_atom;
 ERL_NIF_TERM ok_atom;
 ERL_NIF_TERM not_ok_atom;
 
-__attribute__((used, visibility("default"))) ErlNifResourceType* egl_window_resource_type = NULL;
 static ErlNifResourceType* egl_pixmap_resource_type = NULL;
 
 static ErlNifResourceType* egl_display_resource_type = NULL;
@@ -76,6 +75,20 @@ ERL_NIF_TERM egl_extensions_atom;
 
 ERL_NIF_TERM egl_core_native_engine_atom;
 
+__attribute__((visibility("default")))
+ErlNifResourceType* get_egl_window_resource_type(ErlNifEnv* env) {
+    static ErlNifResourceType* egl_window_resource_type = NULL;
+    if (!egl_window_resource_type) {
+        egl_window_resource_type = enif_open_resource_type(env, NULL, "egl_window", NULL, ERL_NIF_RT_CREATE, NULL);
+
+        if (egl_window_resource_type == NULL) {
+            fprintf(stderr, "failed to open 'EGL window' resource type\n");
+            return -1;
+        }
+    }
+    return egl_window_resource_type;
+}
+
 static void egl_display_resource_dtor(ErlNifEnv* env, void* obj) {
 }
 
@@ -105,13 +118,9 @@ static int nif_module_load(ErlNifEnv *env, void **priv_data, ERL_NIF_TERM arg)
     ok_atom = enif_make_atom(env, "ok");
     not_ok_atom = enif_make_atom(env, "not_ok");
 
-    egl_window_resource_type = enif_open_resource_type(env, NULL, "egl_window", NULL, ERL_NIF_RT_CREATE, NULL);
-    if (egl_window_resource_type == NULL) {
-        fprintf(stderr, "failed to open 'EGL window' resource type\n");
-        return -1;
-    }
+    ErlNifResourceType* egl_window_resource_type = get_egl_window_resource_type(env);
     fprintf(stderr, "[beam-egl.so] egl_window_resource_type = %p\n", (void*)egl_window_resource_type);
-    
+
     egl_pixmap_resource_type = enif_open_resource_type(env, NULL, "egl_pixmap", NULL, ERL_NIF_RT_CREATE, NULL);
     if (egl_pixmap_resource_type == NULL) {
         fprintf(stderr, "failed to open 'EGL pixmap' resource type\n");
@@ -428,6 +437,7 @@ static ERL_NIF_TERM nif_create_window_surface(ErlNifEnv* env, int argc, const ER
     }
     EGLConfig config = *((EGLConfig*)config_resource);
 
+    ErlNifResourceType* egl_window_resource_type = get_egl_window_resource_type(env);
     void* native_window_resource;
     if (!enif_get_resource(env, argv[2], egl_window_resource_type, &native_window_resource)) {
         return enif_make_badarg(env);
