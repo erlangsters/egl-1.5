@@ -38,7 +38,7 @@ ERL_NIF_TERM false_atom;
 ERL_NIF_TERM ok_atom;
 ERL_NIF_TERM not_ok_atom;
 
-ErlNifResourceType* egl_window_resource_type = NULL;
+__attribute__((used, visibility("default"))) ErlNifResourceType* egl_window_resource_type = NULL;
 static ErlNifResourceType* egl_pixmap_resource_type = NULL;
 
 static ErlNifResourceType* egl_display_resource_type = NULL;
