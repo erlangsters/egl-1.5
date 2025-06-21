@@ -508,7 +508,7 @@ init() ->
         Dir ->
             filename:join(Dir, LibName)
     end,
-    io:format("Loading EGL NIF from ~s~n", [SoName]),
+    io:format("[egl] egl NIF location ~s~n", [SoName]),
     erlang:load_nif(SoName, 0).
 
 -doc("""
