@@ -2,6 +2,9 @@
 #include <erl_nif.h>
 #include <EGL/egl.h>
 
+ERL_NIF_TERM true_atom;
+ERL_NIF_TERM false_atom;
+
 ERL_NIF_TERM ok_atom;
 ERL_NIF_TERM not_ok_atom;
 
@@ -63,6 +66,9 @@ static void egl_image_resource_dtor(ErlNifEnv* env, void* obj) {
 
 static int nif_module_load(ErlNifEnv *env, void **priv_data, ERL_NIF_TERM arg)
 {
+    true_atom = enif_make_atom(env, "true");
+    false_atom = enif_make_atom(env, "false");
+
     ok_atom = enif_make_atom(env, "ok");
     not_ok_atom = enif_make_atom(env, "not_ok");
 
