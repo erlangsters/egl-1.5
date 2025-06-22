@@ -43,6 +43,19 @@ ERL_NIF_TERM egl_extensions_atom;
 
 ERL_NIF_TERM egl_core_native_engine_atom;
 
+ErlNifResourceType* get_egl_window_resource_type(ErlNifEnv* env) {
+    static ErlNifResourceType* egl_window_resource_type = NULL;
+    if (!egl_window_resource_type) {
+        egl_window_resource_type = enif_open_resource_type(env, NULL, "egl_window", NULL, ERL_NIF_RT_CREATE, NULL);
+
+        if (egl_window_resource_type == NULL) {
+            fprintf(stderr, "failed to open 'EGL window' resource type\n");
+            return -1;
+        }
+    }
+    return egl_window_resource_type;
+}
+
 static void egl_display_resource_dtor(ErlNifEnv* env, void* obj) {
 }
 
@@ -71,6 +84,10 @@ static int nif_module_load(ErlNifEnv *env, void **priv_data, ERL_NIF_TERM arg)
 
     ok_atom = enif_make_atom(env, "ok");
     not_ok_atom = enif_make_atom(env, "not_ok");
+
+    // The first call initializes the EGL window resource type which we need
+    // to do here.
+    ErlNifResourceType* egl_window_resource_type = get_egl_window_resource_type(env);
 
     egl_display_resource_type = enif_open_resource_type(env, NULL, "egl_display", egl_display_resource_dtor, ERL_NIF_RT_CREATE, NULL);
     if (egl_display_resource_type == NULL) {
