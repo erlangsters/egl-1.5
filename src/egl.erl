@@ -133,7 +133,7 @@ Another source of reference is the
     create_context_raw/4,
     create_pbuffer_surface_raw/3,
     create_pixmap_surface/4,
-    create_window_surface/4,
+    create_window_surface_raw/3,
     destroy_context/2,
     destroy_surface/2,
     get_config_attrib_raw/3,
@@ -792,8 +792,10 @@ It implements the `eglCreateWindowSurface()` function. Read the documentation of
 [C function](https://registry.khronos.org/EGL/sdk/docs/man/html/eglCreateWindowSurface.xhtml)
 for more information.
 """).
-create_window_surface(_A, _B, _C, _D) ->
+create_window_surface(Display, Config, NativeWindow, _AttribsList) ->
+    create_window_surface_raw(Display, Config, NativeWindow).
 
+create_window_surface_raw(_A, _B, _C) ->
     erlang:nif_error(nif_library_not_loaded).
 
 -doc("""

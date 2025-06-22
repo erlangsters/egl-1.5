@@ -387,9 +387,39 @@ static ERL_NIF_TERM nif_create_pixmap_surface(ErlNifEnv* env, int argc, const ER
 
 static ERL_NIF_TERM nif_create_window_surface(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
-    // EGLAPI EGLSurface EGLAPIENTRY eglCreateWindowSurface (EGLDisplay dpy, EGLConfig config, EGLNativeWindowType win, const EGLint *attrib_list);
+    void* display_resource;
+    if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
+        return enif_make_badarg(env);
+    }
+    EGLDisplay display = *((EGLDisplay*)display_resource);
 
-    return enif_make_atom(env, "ok");
+    void* config_resource;
+    if (!enif_get_resource(env, argv[1], egl_config_resource_type, &config_resource)) {
+        return enif_make_badarg(env);
+    }
+    EGLConfig config = *((EGLConfig*)config_resource);
+
+    ErlNifResourceType* egl_window_resource_type = get_egl_window_resource_type(env);
+    void* native_window_resource;
+    if (!enif_get_resource(env, argv[2], egl_window_resource_type, &native_window_resource)) {
+        return enif_make_badarg(env);
+    }
+    EGLNativeWindowType native_window = *((EGLNativeWindowType*)native_window_resource);
+
+    EGLSurface result = eglCreateWindowSurface(display, config, native_window, NULL);
+    if (result == EGL_NO_SURFACE) {
+        return not_ok_atom;
+    }
+    else {
+        void* surface_resource = enif_alloc_resource(egl_surface_resource_type, sizeof(EGLSurface));
+        *((EGLSurface*)surface_resource) = result;
+
+        return enif_make_tuple2(
+            env,
+            enif_make_atom(env, "ok"),
+            enif_make_resource(env, surface_resource)
+        );
+    }
 }
 
 static ERL_NIF_TERM nif_destroy_context(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
@@ -1067,7 +1097,7 @@ static ErlNifFunc nif_functions[] = {
     {"create_context_raw", 4, nif_create_context},
     {"create_pbuffer_surface_raw", 3, nif_create_pbuffer_surface},
     {"create_pixmap_surface", 4, nif_create_pixmap_surface},
-    {"create_window_surface", 4, nif_create_window_surface},
+    {"create_window_surface_raw", 3, nif_create_window_surface},
     {"destroy_context", 2, nif_destroy_context},
     {"destroy_surface", 2, nif_destroy_surface},
     {"get_config_attrib_raw", 3, nif_get_config_attrib},
