@@ -2,12 +2,6 @@
 #include <erl_nif.h>
 #include <EGL/egl.h>
 
-ERL_NIF_TERM true_atom;
-ERL_NIF_TERM false_atom;
-
-ERL_NIF_TERM ok_atom;
-ERL_NIF_TERM not_ok_atom;
-
 static ErlNifResourceType* egl_display_resource_type = NULL;
 static ErlNifResourceType* egl_config_resource_type = NULL;
 static ErlNifResourceType* egl_surface_resource_type = NULL;
@@ -15,6 +9,11 @@ static ErlNifResourceType* egl_context_resource_type = NULL;
 static ErlNifResourceType* egl_client_buffer_resource_type = NULL;
 static ErlNifResourceType* egl_sync_resource_type = NULL;
 static ErlNifResourceType* egl_image_resource_type = NULL;
+
+ERL_NIF_TERM ok_atom;
+ERL_NIF_TERM not_ok_atom;
+ERL_NIF_TERM true_atom;
+ERL_NIF_TERM false_atom;
 
 ERL_NIF_TERM egl_no_display_atom;
 ERL_NIF_TERM egl_no_surface_atom;
@@ -79,12 +78,6 @@ static void egl_image_resource_dtor(ErlNifEnv* env, void* obj) {
 
 static int nif_module_load(ErlNifEnv *env, void **priv_data, ERL_NIF_TERM arg)
 {
-    true_atom = enif_make_atom(env, "true");
-    false_atom = enif_make_atom(env, "false");
-
-    ok_atom = enif_make_atom(env, "ok");
-    not_ok_atom = enif_make_atom(env, "not_ok");
-
     // The first call initializes the EGL window resource type which we need
     // to do here.
     ErlNifResourceType* egl_window_resource_type = get_egl_window_resource_type(env);
@@ -130,6 +123,11 @@ static int nif_module_load(ErlNifEnv *env, void **priv_data, ERL_NIF_TERM arg)
         fprintf(stderr, "failed to open 'EGL image' resource type\n");
         return -1;
     }
+
+    ok_atom = enif_make_atom(env, "ok");
+    not_ok_atom = enif_make_atom(env, "not_ok");
+    true_atom = enif_make_atom(env, "true");
+    false_atom = enif_make_atom(env, "false");
 
     egl_no_display_atom = enif_make_atom(env, "no_display");
     egl_no_surface_atom = enif_make_atom(env, "no_surface");
