@@ -49,7 +49,7 @@ ErlNifResourceType* get_egl_window_resource_type(ErlNifEnv* env) {
 
         if (egl_window_resource_type == NULL) {
             fprintf(stderr, "failed to open 'EGL window' resource type\n");
-            return -1;
+            return NULL;
         }
     }
     return egl_window_resource_type;
@@ -81,6 +81,10 @@ static int nif_module_load(ErlNifEnv *env, void **priv_data, ERL_NIF_TERM arg)
     // The first call initializes the EGL window resource type which we need
     // to do here.
     ErlNifResourceType* egl_window_resource_type = get_egl_window_resource_type(env);
+    if (egl_window_resource_type == NULL) {
+        fprintf(stderr, "failed to get 'EGL window' resource type\n");
+        return -1;
+    }
 
     egl_display_resource_type = enif_open_resource_type(env, NULL, "egl_display", egl_display_resource_dtor, ERL_NIF_RT_CREATE, NULL);
     if (egl_display_resource_type == NULL) {
