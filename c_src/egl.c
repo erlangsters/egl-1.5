@@ -1448,7 +1448,7 @@ static ErlNifFunc nif_functions[] = {
     {"get_error", 0, nif_get_error, 0},
     {"initialize", 1, nif_initialize, 0},
     {"make_current", 4, nif_make_current, 0},
-    {"query_context_raw", 4, nif_query_context, 0},
+    {"query_context_raw", 3, nif_query_context, 0},
     {"query_string", 2, nif_query_string, 0},
     {"query_surface_raw", 3, nif_query_surface, 0},
     {"swap_buffers", 2, nif_swap_buffers, 0},
