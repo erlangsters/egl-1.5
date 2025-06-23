@@ -10,6 +10,7 @@ static ErlNifResourceType* egl_client_buffer_resource_type = NULL;
 static ErlNifResourceType* egl_sync_resource_type = NULL;
 static ErlNifResourceType* egl_image_resource_type = NULL;
 
+ERL_NIF_TERM undefined_atom;
 ERL_NIF_TERM ok_atom;
 ERL_NIF_TERM not_ok_atom;
 ERL_NIF_TERM true_atom;
@@ -145,6 +146,7 @@ static int nif_module_load(ErlNifEnv *env, void **priv_data, ERL_NIF_TERM arg)
         return -1;
     }
 
+    undefined_atom = enif_make_atom(env, "undefined");
     ok_atom = enif_make_atom(env, "ok");
     not_ok_atom = enif_make_atom(env, "not_ok");
     true_atom = enif_make_atom(env, "true");
