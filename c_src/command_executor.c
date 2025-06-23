@@ -30,7 +30,8 @@ static void* command_executor_function(void* arg) {
         executor->command_result = executor->command_function(
             executor->command_env,
             executor->command_argc,
-            (const ERL_NIF_TERM**)executor->command_argv
+            // (const ERL_NIF_TERM**)executor->command_argv
+            executor->command_argv ? *executor->command_argv : NULL
         );
 
         executor->command_function = NULL;

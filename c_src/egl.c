@@ -180,12 +180,10 @@ static int nif_module_load(ErlNifEnv *env, void **priv_data, ERL_NIF_TERM arg)
     return 0;
 }
 
-static int nif_module_unload(ErlNifEnv* caller_env, void** priv_data)
+static void nif_module_unload(ErlNifEnv* caller_env, void* priv_data)
 {
     (void)caller_env;
     (void)priv_data;
-
-    return 0;
 }
 
 static ERL_NIF_TERM nif_choose_config(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
