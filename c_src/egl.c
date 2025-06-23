@@ -56,28 +56,45 @@ ErlNifResourceType* get_egl_window_resource_type(ErlNifEnv* env) {
 }
 
 static void egl_display_resource_dtor(ErlNifEnv* env, void* obj) {
+    (void)env;
+    (void)obj;
 }
 
 static void egl_config_resource_dtor(ErlNifEnv* env, void* obj) {
+    (void)env;
+    (void)obj;
 }
 
 static void egl_surface_resource_dtor(ErlNifEnv* env, void* obj) {
+    (void)env;
+    (void)obj;
 }
 
 static void egl_context_resource_dtor(ErlNifEnv* env, void* obj) {
+    (void)env;
+    (void)obj;
 }
 
 static void egl_client_buffer_resource_dtor(ErlNifEnv* env, void* obj) {
+    (void)env;
+    (void)obj;
 }
 
 static void egl_sync_resource_dtor(ErlNifEnv* env, void* obj) {
+    (void)env;
+    (void)obj;
 }
 
 static void egl_image_resource_dtor(ErlNifEnv* env, void* obj) {
+    (void)env;
+    (void)obj;
 }
 
 static int nif_module_load(ErlNifEnv *env, void **priv_data, ERL_NIF_TERM arg)
 {
+    (void)priv_data;
+    (void)arg;
+
     // The first call initializes the EGL window resource type which we need
     // to do here.
     ErlNifResourceType* egl_window_resource_type = get_egl_window_resource_type(env);
@@ -165,11 +182,16 @@ static int nif_module_load(ErlNifEnv *env, void **priv_data, ERL_NIF_TERM arg)
 
 static int nif_module_unload(ErlNifEnv* caller_env, void** priv_data)
 {
+    (void)caller_env;
+    (void)priv_data;
+
     return 0;
 }
 
 static ERL_NIF_TERM nif_choose_config(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+    (void)argc;
+
     // Second argument is a list of integers that was prepared on the Erlang
     // side so we just pass it as is to eglChooseConfig. We just have to
     // convert it into a C array and append EGL_NONE to it.
@@ -246,6 +268,9 @@ static ERL_NIF_TERM nif_choose_config(ErlNifEnv* env, int argc, const ERL_NIF_TE
 
 static ERL_NIF_TERM nif_copy_buffers(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+    (void)argc;
+    (void)argv;
+
     // EGLAPI EGLBoolean EGLAPIENTRY eglCopyBuffers (EGLDisplay dpy, EGLSurface surface, EGLNativePixmapType target);
 
     return enif_make_atom(env, "ok");
@@ -253,6 +278,8 @@ static ERL_NIF_TERM nif_copy_buffers(ErlNifEnv* env, int argc, const ERL_NIF_TER
 
 static ERL_NIF_TERM nif_create_context(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+    (void)argc;
+
     // Third argument is a list of integers that was prepared on the Erlang
     // side so we just pass it as is to eglCreateContext. We just have
     // to convert it into a C array and append EGL_NONE to it.
@@ -324,6 +351,8 @@ static ERL_NIF_TERM nif_create_context(ErlNifEnv* env, int argc, const ERL_NIF_T
 
 static ERL_NIF_TERM nif_create_pbuffer_surface(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+    (void)argc;
+
     // Second argument is a list of integers that was prepared on the Erlang
     // side so we just pass it as is to eglCreatePbufferSurface. We just have
     // to convert it into a C array and append EGL_NONE to it.
@@ -382,6 +411,9 @@ static ERL_NIF_TERM nif_create_pbuffer_surface(ErlNifEnv* env, int argc, const E
 
 static ERL_NIF_TERM nif_create_pixmap_surface(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+    (void)argc;
+    (void)argv;
+
     // EGLAPI EGLSurface EGLAPIENTRY eglCreatePixmapSurface (EGLDisplay dpy, EGLConfig config, EGLNativePixmapType pixmap, const EGLint *attrib_list);
 
     return enif_make_atom(env, "ok");
@@ -389,6 +421,8 @@ static ERL_NIF_TERM nif_create_pixmap_surface(ErlNifEnv* env, int argc, const ER
 
 static ERL_NIF_TERM nif_create_window_surface(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+    (void)argc;
+
     void* display_resource;
     if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
         return enif_make_badarg(env);
@@ -426,6 +460,8 @@ static ERL_NIF_TERM nif_create_window_surface(ErlNifEnv* env, int argc, const ER
 
 static ERL_NIF_TERM nif_destroy_context(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+    (void)argc;
+
     void* display_resource;
     if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
         return enif_make_badarg(env);
@@ -449,6 +485,8 @@ static ERL_NIF_TERM nif_destroy_context(ErlNifEnv* env, int argc, const ERL_NIF_
 
 static ERL_NIF_TERM nif_destroy_surface(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+    (void)argc;
+
     void* display_resource;
     if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
         return enif_make_badarg(env);
@@ -472,6 +510,8 @@ static ERL_NIF_TERM nif_destroy_surface(ErlNifEnv* env, int argc, const ERL_NIF_
 
 static ERL_NIF_TERM nif_get_config_attrib(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+    (void)argc;
+
     void* display_resource;
     if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
         return enif_make_badarg(env);
@@ -507,6 +547,8 @@ static ERL_NIF_TERM nif_get_config_attrib(ErlNifEnv* env, int argc, const ERL_NI
 
 static ERL_NIF_TERM nif_get_configs(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+    (void)argc;
+
     void* display_resource;
     if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
         return enif_make_badarg(env);
@@ -552,6 +594,9 @@ static ERL_NIF_TERM nif_get_configs(ErlNifEnv* env, int argc, const ERL_NIF_TERM
 
 static ERL_NIF_TERM nif_get_current_display(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+    (void)argc;
+    (void)argv;
+
     EGLDisplay display = eglGetCurrentDisplay();
     if (display == EGL_NO_DISPLAY) {
         return egl_no_display_atom;
@@ -566,6 +611,8 @@ static ERL_NIF_TERM nif_get_current_display(ErlNifEnv* env, int argc, const ERL_
 
 static ERL_NIF_TERM nif_get_current_surface(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+    (void)argc;
+
     EGLint readdraw;
     if (!enif_get_int(env, argv[0], &readdraw)) {
         return enif_make_badarg(env);
@@ -585,6 +632,9 @@ static ERL_NIF_TERM nif_get_current_surface(ErlNifEnv* env, int argc, const ERL_
 
 static ERL_NIF_TERM nif_get_display(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+    (void)argc;
+    (void)argv;
+
     // XXX: First parameter must be read and used. Will be done in later
     //      revisions.
 
@@ -603,6 +653,9 @@ static ERL_NIF_TERM nif_get_display(ErlNifEnv* env, int argc, const ERL_NIF_TERM
 
 static ERL_NIF_TERM nif_get_error(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+    (void)env;
+    (void)argc;
+    (void)argv;
 
     EGLint error = eglGetError();
     switch (error) {
@@ -641,6 +694,8 @@ static ERL_NIF_TERM nif_get_error(ErlNifEnv* env, int argc, const ERL_NIF_TERM a
 
 static ERL_NIF_TERM nif_initialize(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+    (void)argc;
+
     void* display_resource;
     if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
         return enif_make_badarg(env);
@@ -663,6 +718,8 @@ static ERL_NIF_TERM nif_initialize(ErlNifEnv* env, int argc, const ERL_NIF_TERM 
 
 static ERL_NIF_TERM nif_make_current(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+    (void)argc;
+
     void* display_resource;
     if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
         return enif_make_badarg(env);
@@ -713,6 +770,8 @@ static ERL_NIF_TERM nif_make_current(ErlNifEnv* env, int argc, const ERL_NIF_TER
 
 static ERL_NIF_TERM nif_query_context(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+    (void)argc;
+
     void* display_resource;
     if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
         return enif_make_badarg(env);
@@ -746,6 +805,8 @@ static ERL_NIF_TERM nif_query_context(ErlNifEnv* env, int argc, const ERL_NIF_TE
 
 static ERL_NIF_TERM nif_query_string(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+    (void)argc;
+
     EGLDisplay display;
     if (enif_is_identical(argv[0], egl_no_display_atom)) {
         display = EGL_NO_DISPLAY;
@@ -791,6 +852,8 @@ static ERL_NIF_TERM nif_query_string(ErlNifEnv* env, int argc, const ERL_NIF_TER
 
 static ERL_NIF_TERM nif_query_surface(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+    (void)argc;
+
     void* display_resource;
     if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
         return enif_make_badarg(env);
@@ -824,6 +887,8 @@ static ERL_NIF_TERM nif_query_surface(ErlNifEnv* env, int argc, const ERL_NIF_TE
 
 static ERL_NIF_TERM nif_swap_buffers(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+    (void)argc;
+
     void* display_resource;
     if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
         return enif_make_badarg(env);
@@ -847,6 +912,8 @@ static ERL_NIF_TERM nif_swap_buffers(ErlNifEnv* env, int argc, const ERL_NIF_TER
 
 static ERL_NIF_TERM nif_terminate(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+    (void)argc;
+
     void* display_resource;
     if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
         return enif_make_badarg(env);
@@ -864,6 +931,10 @@ static ERL_NIF_TERM nif_terminate(ErlNifEnv* env, int argc, const ERL_NIF_TERM a
 
 static ERL_NIF_TERM nif_wait_gl(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+    (void)env;
+    (void)argc;
+    (void)argv;
+
     EGLBoolean result = eglWaitGL();
     if (result == EGL_TRUE) {
         return ok_atom;
@@ -875,6 +946,8 @@ static ERL_NIF_TERM nif_wait_gl(ErlNifEnv* env, int argc, const ERL_NIF_TERM arg
 
 static ERL_NIF_TERM nif_wait_native(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+    (void)argc;
+
     if (!enif_is_identical(argv[0], egl_core_native_engine_atom)) {
         return enif_make_badarg(env);
     }
@@ -890,6 +963,9 @@ static ERL_NIF_TERM nif_wait_native(ErlNifEnv* env, int argc, const ERL_NIF_TERM
 
 static ERL_NIF_TERM nif_bind_tex_image(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+    (void)argc;
+    (void)argv;
+
     // EGLAPI EGLBoolean EGLAPIENTRY eglBindTexImage (EGLDisplay dpy, EGLSurface surface, EGLint buffer);
 
     return enif_make_atom(env, "ok");
@@ -897,6 +973,9 @@ static ERL_NIF_TERM nif_bind_tex_image(ErlNifEnv* env, int argc, const ERL_NIF_T
 
 static ERL_NIF_TERM nif_release_tex_image(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+    (void)argc;
+    (void)argv;
+
     // EGLAPI EGLBoolean EGLAPIENTRY eglReleaseTexImage (EGLDisplay dpy, EGLSurface surface, EGLint buffer);
 
     return enif_make_atom(env, "ok");
@@ -904,6 +983,8 @@ static ERL_NIF_TERM nif_release_tex_image(ErlNifEnv* env, int argc, const ERL_NI
 
 static ERL_NIF_TERM nif_surface_attrib(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+    (void)argc;
+
     void* display_resource;
     if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
         return enif_make_badarg(env);
@@ -937,6 +1018,8 @@ static ERL_NIF_TERM nif_surface_attrib(ErlNifEnv* env, int argc, const ERL_NIF_T
 
 static ERL_NIF_TERM nif_swap_interval(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+    (void)argc;
+
     void* display_resource;
     if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
         return enif_make_badarg(env);
@@ -959,6 +1042,8 @@ static ERL_NIF_TERM nif_swap_interval(ErlNifEnv* env, int argc, const ERL_NIF_TE
 
 static ERL_NIF_TERM nif_bind_api(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+    (void)argc;
+
     EGLenum api;
     if (!enif_get_int(env, argv[0], &api)) {
         return enif_make_badarg(env);
@@ -975,12 +1060,18 @@ static ERL_NIF_TERM nif_bind_api(ErlNifEnv* env, int argc, const ERL_NIF_TERM ar
 
 static ERL_NIF_TERM nif_query_api(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+    (void)argc;
+    (void)argv;
+
     EGLenum result = eglQueryAPI();
     return enif_make_int(env, result);
 }
 
 static ERL_NIF_TERM nif_create_pbuffer_from_client_buffer(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+    (void)argc;
+    (void)argv;
+
     // EGLAPI EGLSurface EGLAPIENTRY eglCreatePbufferFromClientBuffer (EGLDisplay dpy, EGLenum buftype, EGLClientBuffer buffer, EGLConfig config, const EGLint *attrib_list);
 
     return enif_make_atom(env, "ok");
@@ -988,6 +1079,10 @@ static ERL_NIF_TERM nif_create_pbuffer_from_client_buffer(ErlNifEnv* env, int ar
 
 static ERL_NIF_TERM nif_release_thread(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+    (void)env;
+    (void)argc;
+    (void)argv;
+
     EGLBoolean result = eglReleaseThread();
     if (result == EGL_TRUE) {
         return ok_atom;
@@ -999,6 +1094,10 @@ static ERL_NIF_TERM nif_release_thread(ErlNifEnv* env, int argc, const ERL_NIF_T
 
 static ERL_NIF_TERM nif_wait_client(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+    (void)env;
+    (void)argc;
+    (void)argv;
+
     EGLBoolean result = eglWaitClient();
     if (result == EGL_TRUE) {
         return ok_atom;
@@ -1010,6 +1109,9 @@ static ERL_NIF_TERM nif_wait_client(ErlNifEnv* env, int argc, const ERL_NIF_TERM
 
 static ERL_NIF_TERM nif_get_current_context(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+    (void)argc;
+    (void)argv;
+
     EGLContext context = eglGetCurrentContext();
     if (context == EGL_NO_CONTEXT) {
         return egl_no_context_atom;
@@ -1024,6 +1126,9 @@ static ERL_NIF_TERM nif_get_current_context(ErlNifEnv* env, int argc, const ERL_
 
 static ERL_NIF_TERM nif_create_sync(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+    (void)argc;
+    (void)argv;
+
     // EGLAPI EGLSync EGLAPIENTRY eglCreateSync (EGLDisplay dpy, EGLenum type, const EGLAttrib *attrib_list);
 
     return enif_make_atom(env, "ok");
@@ -1031,6 +1136,9 @@ static ERL_NIF_TERM nif_create_sync(ErlNifEnv* env, int argc, const ERL_NIF_TERM
 
 static ERL_NIF_TERM nif_destroy_sync(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+    (void)argc;
+    (void)argv;
+
     // EGLAPI EGLBoolean EGLAPIENTRY eglDestroySync (EGLDisplay dpy, EGLSync sync);
 
     return enif_make_atom(env, "ok");
@@ -1038,6 +1146,9 @@ static ERL_NIF_TERM nif_destroy_sync(ErlNifEnv* env, int argc, const ERL_NIF_TER
 
 static ERL_NIF_TERM nif_client_wait_sync(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+    (void)argc;
+    (void)argv;
+
     // EGLAPI EGLint EGLAPIENTRY eglClientWaitSync (EGLDisplay dpy, EGLSync sync, EGLint flags, EGLTime timeout);
 
     return enif_make_atom(env, "ok");
@@ -1045,6 +1156,9 @@ static ERL_NIF_TERM nif_client_wait_sync(ErlNifEnv* env, int argc, const ERL_NIF
 
 static ERL_NIF_TERM nif_get_sync_attrib(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+    (void)argc;
+    (void)argv;
+
     // EGLAPI EGLBoolean EGLAPIENTRY eglGetSyncAttrib (EGLDisplay dpy, EGLSync sync, EGLint attribute, EGLAttrib *value);
 
     return enif_make_atom(env, "ok");
@@ -1052,6 +1166,9 @@ static ERL_NIF_TERM nif_get_sync_attrib(ErlNifEnv* env, int argc, const ERL_NIF_
 
 static ERL_NIF_TERM nif_create_image(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+    (void)argc;
+    (void)argv;
+
     // EGLAPI EGLImage EGLAPIENTRY eglCreateImage (EGLDisplay dpy, EGLContext ctx, EGLenum target, EGLClientBuffer buffer, const EGLAttrib *attrib_list);
 
     return enif_make_atom(env, "ok");
@@ -1059,6 +1176,9 @@ static ERL_NIF_TERM nif_create_image(ErlNifEnv* env, int argc, const ERL_NIF_TER
 
 static ERL_NIF_TERM nif_destroy_image(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+    (void)argc;
+    (void)argv;
+
     // EGLAPI EGLBoolean EGLAPIENTRY eglDestroyImage (EGLDisplay dpy, EGLImage image);
 
     return enif_make_atom(env, "ok");
@@ -1066,6 +1186,9 @@ static ERL_NIF_TERM nif_destroy_image(ErlNifEnv* env, int argc, const ERL_NIF_TE
 
 static ERL_NIF_TERM nif_get_platform_display(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+    (void)argc;
+    (void)argv;
+
     // EGLAPI EGLDisplay EGLAPIENTRY eglGetPlatformDisplay (EGLenum platform, void *native_display, const EGLAttrib *attrib_list);
 
     return enif_make_atom(env, "ok");
@@ -1073,6 +1196,9 @@ static ERL_NIF_TERM nif_get_platform_display(ErlNifEnv* env, int argc, const ERL
 
 static ERL_NIF_TERM nif_create_platform_window_surface(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+    (void)argc;
+    (void)argv;
+
     // EGLAPI EGLSurface EGLAPIENTRY eglCreatePlatformWindowSurface (EGLDisplay dpy, EGLConfig config, void *native_window, const EGLAttrib *attrib_list);
 
     return enif_make_atom(env, "ok");
@@ -1080,6 +1206,9 @@ static ERL_NIF_TERM nif_create_platform_window_surface(ErlNifEnv* env, int argc,
 
 static ERL_NIF_TERM nif_create_platform_pixmap_surface(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+    (void)argc;
+    (void)argv;
+
     // EGLAPI EGLSurface EGLAPIENTRY eglCreatePlatformPixmapSurface (EGLDisplay dpy, EGLConfig config, void *native_pixmap, const EGLAttrib *attrib_list);
 
     return enif_make_atom(env, "ok");
@@ -1087,6 +1216,9 @@ static ERL_NIF_TERM nif_create_platform_pixmap_surface(ErlNifEnv* env, int argc,
 
 static ERL_NIF_TERM nif_wait_sync(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
+    (void)argc;
+    (void)argv;
+
     // EGLAPI EGLBoolean EGLAPIENTRY eglWaitSync (EGLDisplay dpy, EGLSync sync, EGLint flags);
 
     return enif_make_atom(env, "ok");

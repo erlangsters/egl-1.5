@@ -81,6 +81,8 @@ void command_executor_execute(
     ERL_NIF_TERM* argv[],
     ERL_NIF_TERM* result
 ) {
+    (void)pid;
+
     pthread_mutex_lock(&executor->mutex);
     executor->command_function = function;
     executor->command_env = env;
