@@ -653,7 +653,6 @@ static ERL_NIF_TERM nif_get_display(ErlNifEnv* env, int argc, const ERL_NIF_TERM
 
 static ERL_NIF_TERM nif_get_error(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
-    (void)env;
     (void)argc;
     (void)argv;
 
@@ -690,6 +689,9 @@ static ERL_NIF_TERM nif_get_error(ErlNifEnv* env, int argc, const ERL_NIF_TERM a
         case EGL_CONTEXT_LOST:
             return egl_context_lost_atom;
     }
+
+    // XXX: Review this.
+    return enif_make_atom(env, "undefined");
 }
 
 static ERL_NIF_TERM nif_initialize(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
