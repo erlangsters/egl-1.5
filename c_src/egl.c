@@ -1044,12 +1044,12 @@ static ERL_NIF_TERM nif_bind_api(ErlNifEnv* env, int argc, const ERL_NIF_TERM ar
 {
     (void)argc;
 
-    EGLenum api;
+    int api;
     if (!enif_get_int(env, argv[0], &api)) {
         return enif_make_badarg(env);
     }
 
-    EGLBoolean result = eglBindAPI(api);
+    EGLBoolean result = eglBindAPI((EGLenum)api);
     if (result == EGL_TRUE) {
         return ok_atom;
     }
