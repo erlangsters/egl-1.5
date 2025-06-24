@@ -59,6 +59,7 @@ CommandExecutor* context_map_put(ContextMap* map, EGLContext context) {
     }
 
     if (map->size >= map->capacity) {
+        printf("reallocating context map from %zu to %zu\n", map->capacity, map->capacity * 2);
         size_t new_capacity = map->capacity * 2;
         ContextMapEntry* new_entries = realloc(map->entries, new_capacity * sizeof(ContextMapEntry));
         if (!new_entries) {

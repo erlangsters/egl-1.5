@@ -1,6 +1,10 @@
 #include <string.h>
+#include <assert.h>
 #include <erl_nif.h>
 #include <EGL/egl.h>
+#include "command_executor.h"
+#include "context_map.h"
+
 
 static ErlNifResourceType* egl_display_resource_type = NULL;
 static ErlNifResourceType* egl_config_resource_type = NULL;
@@ -42,6 +46,8 @@ ERL_NIF_TERM egl_version_atom;
 ERL_NIF_TERM egl_extensions_atom;
 
 ERL_NIF_TERM egl_core_native_engine_atom;
+
+static ContextMap* context_map = NULL;
 
 ErlNifResourceType* get_egl_window_resource_type(ErlNifEnv* env) {
     static ErlNifResourceType* egl_window_resource_type = NULL;
@@ -179,6 +185,12 @@ static int nif_module_load(ErlNifEnv *env, void **priv_data, ERL_NIF_TERM arg)
 
     egl_core_native_engine_atom = enif_make_atom(env, "core_native_engine");
 
+    context_map = context_map_create(4);
+    if (context_map == NULL) {
+        fprintf(stderr, "failed to create OpenGL context map\n");
+        return -1;
+    }
+
     return 0;
 }
 
@@ -186,6 +198,12 @@ static void nif_module_unload(ErlNifEnv* caller_env, void* priv_data)
 {
     (void)caller_env;
     (void)priv_data;
+
+    if (context_map) {
+        // xxx
+        context_map_destroy(context_map);
+        context_map = NULL;
+    }
 }
 
 static ERL_NIF_TERM nif_choose_config(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
@@ -341,6 +359,9 @@ static ERL_NIF_TERM nif_create_context(ErlNifEnv* env, int argc, const ERL_NIF_T
         void* context_resource = enif_alloc_resource(egl_context_resource_type, sizeof(EGLContext));
         *((EGLContext*)context_resource) = result;
 
+        CommandExecutor* command_executor = context_map_put(context_map, result);
+        command_executor_init(command_executor);
+
         return enif_make_tuple2(
             env,
             enif_make_atom(env, "ok"),
@@ -475,7 +496,15 @@ static ERL_NIF_TERM nif_destroy_context(ErlNifEnv* env, int argc, const ERL_NIF_
     EGLContext context = *((EGLContext*)context_resource);
 
     EGLBoolean result = eglDestroyContext(display, context);
+
     if (result == EGL_TRUE) {
+
+        CommandExecutor* command_executor = context_map_get(context_map, context);
+        assert(command_executor != NULL);
+        command_executor_destroy(command_executor);
+        bool success = context_map_erase(context_map, context);
+        assert(success);
+
         return ok_atom;
     }
     else {
