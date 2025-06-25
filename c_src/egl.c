@@ -4,7 +4,7 @@
 #include <EGL/egl.h>
 #include "command_executor.h"
 #include "context_map.h"
-
+#include "active_context_map.h"
 
 static ErlNifResourceType* egl_display_resource_type = NULL;
 static ErlNifResourceType* egl_config_resource_type = NULL;
@@ -48,6 +48,7 @@ ERL_NIF_TERM egl_extensions_atom;
 ERL_NIF_TERM egl_core_native_engine_atom;
 
 static ContextMap* context_map = NULL;
+static ActiveContextMap active_context_map;
 
 ErlNifResourceType* get_egl_window_resource_type(ErlNifEnv* env) {
     static ErlNifResourceType* egl_window_resource_type = NULL;
@@ -190,6 +191,7 @@ static int nif_module_load(ErlNifEnv *env, void **priv_data, ERL_NIF_TERM arg)
         fprintf(stderr, "failed to create OpenGL context map\n");
         return -1;
     }
+    active_context_map_init(&active_context_map);
 
     return 0;
 }
@@ -747,7 +749,7 @@ static ERL_NIF_TERM nif_initialize(ErlNifEnv* env, int argc, const ERL_NIF_TERM 
     }
 }
 
-static ERL_NIF_TERM nif_make_current(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM bind_context_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     (void)argc;
 
@@ -778,24 +780,147 @@ static ERL_NIF_TERM nif_make_current(ErlNifEnv* env, int argc, const ERL_NIF_TER
         }
         read = *((EGLSurface*)read_resource);
     }
+
     EGLContext context;
-    if (enif_is_identical(argv[3], enif_make_atom(env, "no_context"))) {
-        context = EGL_NO_CONTEXT;
+    void* context_resource;
+    if (!enif_get_resource(env, argv[3], egl_context_resource_type, &context_resource)) {
+        return enif_make_badarg(env);
     }
-    else {
-        void* context_resource;
-        if (!enif_get_resource(env, argv[3], egl_context_resource_type, &context_resource)) {
-            return enif_make_badarg(env);
-        }
-        context = *((EGLContext*)context_resource);
-    }
+    context = *((EGLContext*)context_resource);
 
     EGLBoolean result = eglMakeCurrent(display, draw, read, context);
     if (result == EGL_TRUE) {
+        // The state of active contexts has changed, we update our internal map
+        // to reflect this change.
+        ErlNifPid pid;
+        enif_self(env, &pid);
+
+        ErlNifPid* bound_pid = active_context_map_find_by_context(&active_context_map, context);
+        if (bound_pid != NULL) {
+            bool success = active_context_map_remove_by_pid(&active_context_map, bound_pid);
+            assert(success);
+        }
+
+        bool success = active_context_map_add(&active_context_map, &pid, context);
+        assert(success);
+
         return ok_atom;
     }
     else {
         return not_ok_atom;
+    }
+}
+
+static ERL_NIF_TERM unbind_context_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+{
+    (void)argc;
+
+    void* display_resource;
+    if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
+        return enif_make_badarg(env);
+    }
+    EGLDisplay display = *((EGLDisplay*)display_resource);
+
+    EGLContext draw;
+    if (enif_is_identical(argv[1], enif_make_atom(env, "no_surface"))) {
+        draw = EGL_NO_SURFACE;
+    } else {
+        void* draw_resource;
+        if (!enif_get_resource(env, argv[1], egl_surface_resource_type, &draw_resource)) {
+            return enif_make_badarg(env);
+        }
+        draw = *((EGLSurface*)draw_resource);
+    }
+
+    EGLContext read;
+    if (enif_is_identical(argv[2], enif_make_atom(env, "no_surface"))) {
+        read = EGL_NO_SURFACE;
+    } else {
+        void* read_resource;
+        if (!enif_get_resource(env, argv[2], egl_surface_resource_type, &read_resource)) {
+            return enif_make_badarg(env);
+        }
+        read = *((EGLSurface*)read_resource);
+    }
+
+    EGLContext context = EGL_NO_CONTEXT;
+
+    EGLBoolean result = eglMakeCurrent(display, draw, read, context);
+    if (result == EGL_TRUE) {
+        // The state of active contexts has changed, we update our internal map
+        // to reflect this change.
+        bool success = active_context_map_remove_by_context(&active_context_map, context);
+        assert(success);
+
+        return ok_atom;
+    }
+    else {
+        return not_ok_atom;
+    }
+}
+
+static ERL_NIF_TERM nif_make_current(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+{
+    // Note that the implementation of this function is a bit difficult to
+    // understand because instead of working with one OS thread per BEAM
+    // process, we work with one OS thread per EGL context.
+    (void)argc;
+
+    // We need to handle two requests: binding and unbinding a context.
+    if (enif_is_identical(argv[3], enif_make_atom(env, "no_context"))) {
+        // This is a "unbind" request. According to the documentation, it must
+        // be run on the OS thread that has the context bound to it. If the
+        // BEAM process has no context bound to it, we do nothing and print a
+        // warning for now.
+        // Note: we let the function update the active context map.
+        // XXX: It will probably changed. It also needs to be tested/verified.
+
+        ErlNifPid pid;
+        enif_self(env, &pid);
+
+        EGLContext* context = active_context_map_find_by_pid(&active_context_map, &pid);
+        if (context != NULL) {
+            CommandExecutor* command_executor = context_map_get(context_map, context);
+            assert(command_executor != NULL);
+
+            ERL_NIF_TERM result;
+            command_executor_execute(
+                command_executor,
+                unbind_context_nif,
+                env,
+                argc,
+                argv,
+                &result
+            );
+            return result;
+        }
+        else {
+            return enif_make_atom(env, "no_context_bound_xxx");
+        }
+    }
+    else {
+        // This is a "bind" request. We execute it on the OS thread associated
+        // to the EGL context.
+        // Note: we let the function update the active context map.
+        void* context_resource;
+        if (!enif_get_resource(env, argv[3], egl_context_resource_type, &context_resource)) {
+            return enif_make_badarg(env);
+        }
+        EGLContext context = *((EGLContext*)context_resource);
+
+        CommandExecutor* command_executor = context_map_get(context_map, context);
+        assert(command_executor != NULL);
+
+        ERL_NIF_TERM result;
+        command_executor_execute(
+            command_executor,
+            bind_context_nif,
+            env,
+            argc,
+            argv,
+            &result
+        );
+        return result;
     }
 }
 
