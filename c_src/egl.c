@@ -63,6 +63,46 @@ ErlNifResourceType* get_egl_window_resource_type(ErlNifEnv* env) {
     return egl_window_resource_type;
 }
 
+ERL_NIF_TERM egl_execute_command(
+    ERL_NIF_TERM (*function)(ErlNifEnv*, int, const ERL_NIF_TERM[]),
+    ErlNifEnv* env,
+    int argc,
+    ERL_NIF_TERM* argv[]
+) {
+    // XXX: The caller should be able to know if the command was executed.
+    //      Perhaps add some variations of this function to fallback on
+    //      executing the command in the current thread.
+
+    // We must execute a NIF function (most of the time, those are OpenGL
+    // commands) in the OS thread that is associated (by a bound OpenGL
+    // context) to the BEAM process.
+    ErlNifPid pid;
+    enif_self(env, &pid);
+
+    EGLContext* context = active_context_map_find_by_pid(&active_context_map, &pid);
+    if (context != NULL) {
+        // The BEAM process has an active context, we can execute the command
+        // on a separate OS thread.
+        CommandExecutor* command_executor = context_map_get(context_map, *context);
+        assert(command_executor != NULL);
+
+        ERL_NIF_TERM result;
+        command_executor_execute(
+            command_executor,
+            function,
+            env,
+            argc,
+            argv,
+            &result
+        );
+        return result;
+    }
+    else {
+        // XXX: Return 'undefine' atom instead ?
+        return enif_make_badarg(env);
+    }
+}
+
 static void egl_display_resource_dtor(ErlNifEnv* env, void* obj) {
     (void)env;
     (void)obj;
