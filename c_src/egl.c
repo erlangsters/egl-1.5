@@ -1081,7 +1081,7 @@ static ERL_NIF_TERM nif_query_surface(ErlNifEnv* env, int argc, const ERL_NIF_TE
     }
 }
 
-static ERL_NIF_TERM nif_swap_buffers(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM egl_swap_buffers_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     (void)argc;
 
@@ -1104,6 +1104,16 @@ static ERL_NIF_TERM nif_swap_buffers(ErlNifEnv* env, int argc, const ERL_NIF_TER
     else {
         return not_ok_atom;
     }
+}
+
+static ERL_NIF_TERM nif_swap_buffers(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+{
+    return egl_execute_command(
+        egl_swap_buffers_nif,
+        env,
+        argc,
+        argv
+    );
 }
 
 static ERL_NIF_TERM nif_terminate(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
