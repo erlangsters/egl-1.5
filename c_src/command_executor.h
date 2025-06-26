@@ -36,7 +36,6 @@ bool command_executor_destroy(CommandExecutor* executor);
 
 void command_executor_execute(
     CommandExecutor* executor,
-    ErlNifPid* pid,
     ERL_NIF_TERM (*function)(ErlNifEnv*, int, const ERL_NIF_TERM[]),
     ErlNifEnv* env,
     int argc,

@@ -30,8 +30,7 @@ static void* command_executor_function(void* arg) {
         executor->command_result = executor->command_function(
             executor->command_env,
             executor->command_argc,
-            // (const ERL_NIF_TERM**)executor->command_argv
-            executor->command_argv ? *executor->command_argv : NULL
+            (const ERL_NIF_TERM**)executor->command_argv
         );
 
         executor->command_function = NULL;
@@ -75,16 +74,14 @@ bool command_executor_destroy(CommandExecutor* executor) {
 
 void command_executor_execute(
     CommandExecutor* executor,
-    ErlNifPid* pid,
     ERL_NIF_TERM (*function)(ErlNifEnv*, int, const ERL_NIF_TERM[]),
     ErlNifEnv* env,
     int argc,
     ERL_NIF_TERM* argv[],
     ERL_NIF_TERM* result
 ) {
-    (void)pid;
-
     pthread_mutex_lock(&executor->mutex);
+
     executor->command_function = function;
     executor->command_env = env;
     executor->command_argc = argc;
