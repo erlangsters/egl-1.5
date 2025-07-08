@@ -18,12 +18,22 @@ jobs:
           install-rebar3: true
       - run: rebar3 compile
 
-  # macos: % XXX: Will require ANGLE
-  #   runs-on: macos-latest
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - uses: erlangsters/setup-erlang@v1
-  #       with:
-  #         erlang-version: 28
-  #         install-rebar3: true
-  #     - run: rebar3 compile
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlangsters/setup-erlang@v1
+        with:
+          erlang-version: 28
+          install-rebar3: true
+      - run: rebar3 compile
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlangsters/setup-erlang@v1
+        with:
+          erlang-version: 28
+          install-rebar3: true
+      - run: rebar3 compile
