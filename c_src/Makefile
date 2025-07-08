@@ -12,6 +12,11 @@ else ifeq ($(UNAME_SYS), Linux)
 	CFLAGS ?= -O3 -std=c17 -Wall -Wextra -Werror=implicit-function-declaration
 endif
 
+ifeq ($(UNAME_SYS), Darwin)
+	CFLAGS += -I $(ANGLE_INCLUDE_DIR)
+	LDLIBS += -L $(ANGLE_LIB_DIR)
+endif
+
 CFLAGS += -fPIC -I $(ERTS_INCLUDE_DIR) -I $(ERL_INTERFACE_INCLUDE_DIR)
 LDLIBS += -L $(ERL_INTERFACE_LIB_DIR) -lei -lEGL
 LDFLAGS += -shared
