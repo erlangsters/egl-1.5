@@ -346,6 +346,8 @@ static ERL_NIF_TERM nif_create_context(ErlNifEnv* env, int argc, const ERL_NIF_T
 {
     (void)argc;
 
+    eglBindAPI(EGL_OPENGL_API);
+    
     // Third argument is a list of integers that was prepared on the Erlang
     // side so we just pass it as is to eglCreateContext. We just have
     // to convert it into a C array and append EGL_NONE to it.
