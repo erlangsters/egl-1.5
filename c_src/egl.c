@@ -6,6 +6,12 @@
 #include "context_map.h"
 #include "active_context_map.h"
 
+#if defined(_WIN32)
+#define EXPORT_SYMBOL __declspec(dllexport)
+#else
+#define EXPORT_SYMBOL
+#endif
+
 static ErlNifResourceType* egl_display_resource_type = NULL;
 static ErlNifResourceType* egl_config_resource_type = NULL;
 static ErlNifResourceType* egl_surface_resource_type = NULL;
@@ -50,7 +56,7 @@ ERL_NIF_TERM egl_core_native_engine_atom;
 static ContextMap* context_map = NULL;
 static ActiveContextMap active_context_map;
 
-extern __declspec(dllexport) ErlNifResourceType* get_egl_window_resource_type(ErlNifEnv* env) {
+extern EXPORT_SYMBOL ErlNifResourceType* get_egl_window_resource_type(ErlNifEnv* env) {
     static ErlNifResourceType* egl_window_resource_type = NULL;
     if (!egl_window_resource_type) {
         egl_window_resource_type = enif_open_resource_type(env, NULL, "egl_window", NULL, ERL_NIF_RT_CREATE, NULL);
