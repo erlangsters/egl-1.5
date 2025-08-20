@@ -18,8 +18,7 @@ jobs:
           install-rebar3: true
       - run: |
           rebar3 compile
-          rebar3 eunit -m egl_choose_config_test
-
+          rebar3 eunit -m egl_get_display_test
 
   macos:
     runs-on: macos-latest
@@ -35,7 +34,7 @@ jobs:
           export ANGLE_INCLUDE_DIR="${{ steps.angle.outputs.angle-location }}/include"
           export ANGLE_LIB_DIR="${{ steps.angle.outputs.angle-location }}/lib"
           rebar3 compile
-          rebar3 eunit -m egl_choose_config_test
+          rebar3 eunit -m egl_get_display_test
 
   windows:
     runs-on: windows-latest
@@ -48,9 +47,10 @@ jobs:
       - id: angle
         uses: erlangsters/setup-angle@v1
       - run: |
-          $location = "${{ steps.angle.outputs.angle-location }}"
-          $env:ANGLE_INCLUDE_DIR = "$location\include"
-          $env:ANGLE_LIB_DIR = "$location\lib"
+          $angleLocation = "${{ steps.angle.outputs.angle-location }}"
+          $env:ANGLE_INCLUDE_DIR = "$angleLocation\include"
+          $env:ANGLE_LIB_DIR = "$angleLocation\lib"
           rebar3 compile
-          rebar3 shell --eval "egl:get_display(default_display), erlang:halt()"
+          $env:Path = "$angleLocation\bin;$env:Path"
+          rebar3 eunit -m egl_get_display_test
         shell: pwsh
