@@ -18,7 +18,7 @@ jobs:
           install-rebar3: true
       - run: |
           rebar3 compile
-          rebar3 shell --eval "egl:get_display(default_display), erlang:halt()"
+          rebar3 eunit -m egl_choose_config_test
 
 
   macos:
@@ -35,7 +35,7 @@ jobs:
           export ANGLE_INCLUDE_DIR="${{ steps.angle.outputs.angle-location }}/include"
           export ANGLE_LIB_DIR="${{ steps.angle.outputs.angle-location }}/lib"
           rebar3 compile
-          rebar3 shell --eval "egl:get_display(default_display), erlang:halt()"
+          rebar3 eunit -m egl_choose_config_test
 
   windows:
     runs-on: windows-latest
@@ -52,4 +52,5 @@ jobs:
           $env:ANGLE_INCLUDE_DIR = "$location\include"
           $env:ANGLE_LIB_DIR = "$location\lib"
           rebar3 compile
+          rebar3 shell --eval "egl:get_display(default_display), erlang:halt()"
         shell: pwsh

@@ -14,7 +14,10 @@ egl_choose_config_test() ->
         {stencil_size, 8}
     ],
     {ok, Configs} = egl:choose_config(Display, AttribList),
-    test = Configs,
 
+    io:format(user, "=== Found ~p configurations~n", [length(Configs)]),
+    lists:foreach(fun(Config) ->
+        test_egl:print_config(Display, Config)
+    end, Configs),
 
     ok.
