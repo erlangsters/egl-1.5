@@ -13,16 +13,16 @@ static void* command_executor_function(void* arg) {
     CommandExecutor* executor = (CommandExecutor*)arg;
 
     while (true) {
-        pthread_mutex_lock(&executor->mutex);
+        enif_mutex_lock(executor->mutex);
 
         /* Wait as long as there is no command AND we are not terminating. */
         while (!executor->should_terminate && executor->command_function == NULL) {
-            pthread_cond_wait(&executor->command_ready, &executor->mutex);
+            enif_cond_wait(executor->command_ready, executor->mutex);
         }
 
         /* If we've been told to stop, break out of the loop. */
         if (executor->should_terminate) {
-            pthread_mutex_unlock(&executor->mutex);
+            enif_mutex_unlock(executor->mutex);
             break;
         }
 
@@ -35,8 +35,8 @@ static void* command_executor_function(void* arg) {
 
         executor->command_function = NULL;
         executor->command_finished = 1;
-        pthread_cond_signal(&executor->command_done);
-        pthread_mutex_unlock(&executor->mutex);
+        enif_cond_signal(executor->command_done);
+        enif_mutex_unlock(executor->mutex);
     }
 
     return NULL;
@@ -44,9 +44,16 @@ static void* command_executor_function(void* arg) {
 
 bool command_executor_init(CommandExecutor* executor) {
     executor->thread = 0;
-    executor->mutex = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
-    executor->command_ready = (pthread_cond_t)PTHREAD_COND_INITIALIZER;
-    executor->command_done = (pthread_cond_t)PTHREAD_COND_INITIALIZER;
+    executor->mutex = enif_mutex_create("command_executor_mutex");
+    executor->command_ready = enif_cond_create("command_executor_ready");
+    executor->command_done = enif_cond_create("command_executor_done");
+
+    if (!executor->mutex || !executor->command_ready || !executor->command_done) {
+        if (executor->mutex) enif_mutex_destroy(executor->mutex);
+        if (executor->command_ready) enif_cond_destroy(executor->command_ready);
+        if (executor->command_done) enif_cond_destroy(executor->command_done);
+        return false;
+    }
 
     executor->command_function = NULL;
     executor->command_env = NULL;
@@ -56,19 +63,28 @@ bool command_executor_init(CommandExecutor* executor) {
     executor->command_finished = 0;
     executor->should_terminate = false;
 
-    if (pthread_create(&executor->thread, NULL, command_executor_function, executor) != 0) {
+    if (enif_thread_create("command_executor_thread", &executor->thread, command_executor_function, executor, NULL) != 0) {
+        enif_mutex_destroy(executor->mutex);
+        enif_cond_destroy(executor->command_ready);
+        enif_cond_destroy(executor->command_done);
         return false;
     }
     return true;
 }
 
 bool command_executor_destroy(CommandExecutor* executor) {
-    pthread_mutex_lock(&executor->mutex);
+    enif_mutex_lock(executor->mutex);
     executor->should_terminate = true;
-    pthread_cond_signal(&executor->command_ready);
-    pthread_mutex_unlock(&executor->mutex);
+    enif_cond_signal(executor->command_ready);
+    enif_mutex_unlock(executor->mutex);
 
-    pthread_join(executor->thread, NULL);
+    void* result;
+    enif_thread_join(executor->thread, &result);
+    
+    enif_mutex_destroy(executor->mutex);
+    enif_cond_destroy(executor->command_ready);
+    enif_cond_destroy(executor->command_done);
+    
     return true;
 }
 
@@ -80,7 +96,7 @@ void command_executor_execute(
     ERL_NIF_TERM* argv[],
     ERL_NIF_TERM* result
 ) {
-    pthread_mutex_lock(&executor->mutex);
+    enif_mutex_lock(executor->mutex);
 
     executor->command_function = function;
     executor->command_env = env;
@@ -88,12 +104,12 @@ void command_executor_execute(
     executor->command_argv = argv;
     executor->command_finished = 0;
 
-    pthread_cond_signal(&executor->command_ready);
+    enif_cond_signal(executor->command_ready);
 
     while (!executor->command_finished) {
-        pthread_cond_wait(&executor->command_done, &executor->mutex);
+        enif_cond_wait(executor->command_done, executor->mutex);
     }
 
     *result = executor->command_result;
-    pthread_mutex_unlock(&executor->mutex);
+    enif_mutex_unlock(executor->mutex);
 }

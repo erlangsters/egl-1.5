@@ -11,15 +11,14 @@
 
 #include <stdbool.h>
 #include <string.h>
-#include <pthread.h>
 #include <stdio.h>
 #include <erl_nif.h>
 
 typedef struct {
-    pthread_t thread;
-    pthread_mutex_t mutex;
-    pthread_cond_t command_ready;
-    pthread_cond_t command_done;
+    ErlNifTid thread;
+    ErlNifMutex* mutex;
+    ErlNifCond* command_ready;
+    ErlNifCond* command_done;
 
     ERL_NIF_TERM (*command_function)(ErlNifEnv*, int, const ERL_NIF_TERM[]);
     ErlNifEnv* command_env;
