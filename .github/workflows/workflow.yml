@@ -16,7 +16,10 @@ jobs:
         with:
           erlang-version: 28
           install-rebar3: true
-      - run: rebar3 compile
+      - run: |
+          rebar3 compile
+          rebar3 shell --eval "egl:get_display(default_display), erlang:halt()"
+
 
   macos:
     runs-on: macos-latest
@@ -32,6 +35,7 @@ jobs:
           export ANGLE_INCLUDE_DIR="${{ steps.angle.outputs.angle-location }}/include"
           export ANGLE_LIB_DIR="${{ steps.angle.outputs.angle-location }}/lib"
           rebar3 compile
+          rebar3 shell --eval "egl:get_display(default_display), erlang:halt()"
 
   windows:
     runs-on: windows-latest
@@ -44,6 +48,8 @@ jobs:
       - id: angle
         uses: erlangsters/setup-angle@v1
       - run: |
-          export ANGLE_INCLUDE_DIR="${{ steps.angle.outputs.angle-location }}/include"
-          export ANGLE_LIB_DIR="${{ steps.angle.outputs.angle-location }}/lib"
+          $location = "${{ steps.angle.outputs.angle-location }}"
+          $env:ANGLE_INCLUDE_DIR = "$location\include"
+          $env:ANGLE_LIB_DIR = "$location\lib"
           rebar3 compile
+        shell: pwsh
