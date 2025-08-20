@@ -69,7 +69,7 @@ extern EXPORT_SYMBOL ErlNifResourceType* get_egl_window_resource_type(ErlNifEnv*
     return egl_window_resource_type;
 }
 
-ERL_NIF_TERM egl_execute_command(
+extern EXPORT_SYMBOL ERL_NIF_TERM egl_execute_command(
     ERL_NIF_TERM (*function)(ErlNifEnv*, int, const ERL_NIF_TERM[]),
     ErlNifEnv* env,
     int argc,

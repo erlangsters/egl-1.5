@@ -173,7 +173,7 @@ Another source of reference is the
     wait_sync/3
 ]).
 
--on_load(init/0).
+-on_load(egl_init/0).
 
 % EGL 1.0.
 -define(EGL_ALPHA_SIZE, 16#3021).
@@ -495,9 +495,9 @@ It's a reference to an EGL display connection.
     render_buffer
 .
 
-init() ->
+egl_init() ->
     LibName = "beam-egl",
-    SoName = case code:priv_dir(?MODULE) of
+    LibPath = case code:priv_dir(?MODULE) of
         {error, bad_name} ->
             case filelib:is_dir(filename:join(["..", priv])) of
                 true ->
@@ -505,11 +505,10 @@ init() ->
                 _ ->
                     filename:join([priv, LibName])
             end;
-        Dir ->
-            filename:join(Dir, LibName)
+        PrivDir ->
+            filename:join(PrivDir, LibName)
     end,
-    io:format("Loading EGL NIF from ~s~n", [SoName]),
-    erlang:load_nif(SoName, 0).
+    erlang:load_nif(LibPath, undefined).
 
 -doc("""
 Return a list of EGL frame buffer configurations that match specified
