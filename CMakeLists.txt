@@ -14,6 +14,17 @@ if(NOT DEFINED ERL_INTERFACE_DIR)
     message(FATAL_ERROR "ERL_INTERFACE_DIR must be defined (pass -DERL_INTERFACE_DIR=...)")
 endif()
 
+# On macOS and Windows, it also requires the ANGLE_INCLUDE_DIR and
+# ANGLE_LIB_DIR values specified with the -D flags.
+if(APPLE OR WIN32)
+    if(NOT DEFINED ANGLE_INCLUDE_DIR)
+        message(FATAL_ERROR "ANGLE_INCLUDE_DIR must be defined (pass -DANGLE_INCLUDE_DIR=...)")
+    endif()
+    if(NOT DEFINED ANGLE_LIB_DIR)
+        message(FATAL_ERROR "ANGLE_LIB_DIR must be defined (pass -DANGLE_LIB_DIR=...)")
+    endif()
+endif()
+
 set(ERTS_INCLUDE_DIR "${ERLANG_ERTS_DIR}/include")
 set(ERL_INTERFACE_INCLUDE_DIR "${ERL_INTERFACE_DIR}/include")
 set(ERL_INTERFACE_LIB_DIR "${ERL_INTERFACE_DIR}/lib")
@@ -62,4 +73,13 @@ if(APPLE)
     )
 endif()
 
-target_link_libraries(beam-egl PRIVATE ei EGL)
+if(WIN32)
+    # On Windows, link with ANGLE's libEGL
+    target_link_libraries(beam-egl PRIVATE ei libEGL)
+elseif(APPLE)
+    # On macOS, link with ANGLE's libEGL
+    target_link_libraries(beam-egl PRIVATE ei EGL)
+else()
+    # On Linux, link with system EGL
+    target_link_libraries(beam-egl PRIVATE ei EGL)
+endif()
