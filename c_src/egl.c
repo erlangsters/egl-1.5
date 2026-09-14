@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -73,6 +74,38 @@ ERL_NIF_TERM angle_atom;
 static ContextMap* context_map = NULL;
 static ActiveContextMap active_context_map;
 
+typedef struct EglDisplayResource {
+    EGLDisplay display;
+    int alive;
+    struct EglDisplayResource* intern_next;
+} EglDisplayResource;
+
+typedef struct EglConfigResource {
+    EGLDisplay display;
+    EGLConfig config;
+    int alive;
+    struct EglConfigResource* intern_next;
+} EglConfigResource;
+
+typedef struct EglSurfaceResource {
+    EGLDisplay display;
+    EGLSurface surface;
+    int alive;
+    struct EglSurfaceResource* intern_next;
+} EglSurfaceResource;
+
+typedef struct EglContextResource {
+    EGLDisplay display;
+    EGLContext context;
+    int alive;
+    struct EglContextResource* intern_next;
+} EglContextResource;
+
+static EglDisplayResource* interned_displays = NULL;
+static EglConfigResource* interned_configs = NULL;
+static EglSurfaceResource* interned_surfaces = NULL;
+static EglContextResource* interned_contexts = NULL;
+
 extern EXPORT_SYMBOL ErlNifResourceType* get_egl_window_resource_type(ErlNifEnv* env) {
     static ErlNifResourceType* egl_window_resource_type = NULL;
     if (!egl_window_resource_type) {
@@ -140,24 +173,337 @@ extern EXPORT_SYMBOL ERL_NIF_TERM egl_execute_command(
     }
 }
 
+static void beam_unlink_display(EglDisplayResource* resource)
+{
+    EglDisplayResource** slot = &interned_displays;
+    while (*slot != NULL) {
+        if (*slot == resource) {
+            *slot = resource->intern_next;
+            resource->intern_next = NULL;
+            enif_release_resource(resource);
+            return;
+        }
+        slot = &(*slot)->intern_next;
+    }
+}
+
+static void beam_unlink_config(EglConfigResource* resource)
+{
+    EglConfigResource** slot = &interned_configs;
+    while (*slot != NULL) {
+        if (*slot == resource) {
+            *slot = resource->intern_next;
+            resource->intern_next = NULL;
+            enif_release_resource(resource);
+            return;
+        }
+        slot = &(*slot)->intern_next;
+    }
+}
+
+static void beam_unlink_surface(EglSurfaceResource* resource)
+{
+    EglSurfaceResource** slot = &interned_surfaces;
+    while (*slot != NULL) {
+        if (*slot == resource) {
+            *slot = resource->intern_next;
+            resource->intern_next = NULL;
+            enif_release_resource(resource);
+            return;
+        }
+        slot = &(*slot)->intern_next;
+    }
+}
+
+static void beam_unlink_context(EglContextResource* resource)
+{
+    EglContextResource** slot = &interned_contexts;
+    while (*slot != NULL) {
+        if (*slot == resource) {
+            *slot = resource->intern_next;
+            resource->intern_next = NULL;
+            enif_release_resource(resource);
+            return;
+        }
+        slot = &(*slot)->intern_next;
+    }
+}
+
+static void beam_poison_display(EglDisplayResource* resource)
+{
+    if (!resource->alive) {
+        return;
+    }
+    resource->alive = 0;
+    resource->display = EGL_NO_DISPLAY;
+    beam_unlink_display(resource);
+}
+
+static void beam_poison_config(EglConfigResource* resource)
+{
+    if (!resource->alive) {
+        return;
+    }
+    resource->alive = 0;
+    resource->config = NULL;
+    resource->display = EGL_NO_DISPLAY;
+    beam_unlink_config(resource);
+}
+
+static void beam_poison_surface(EglSurfaceResource* resource)
+{
+    if (!resource->alive) {
+        return;
+    }
+    resource->alive = 0;
+    resource->surface = EGL_NO_SURFACE;
+    resource->display = EGL_NO_DISPLAY;
+    beam_unlink_surface(resource);
+}
+
+static void beam_poison_context(EglContextResource* resource)
+{
+    if (!resource->alive) {
+        return;
+    }
+    resource->alive = 0;
+    resource->context = EGL_NO_CONTEXT;
+    resource->display = EGL_NO_DISPLAY;
+    beam_unlink_context(resource);
+}
+
+static ERL_NIF_TERM beam_intern_display(ErlNifEnv* env, EGLDisplay display)
+{
+    EglDisplayResource* it;
+    for (it = interned_displays; it != NULL; it = it->intern_next) {
+        if (it->alive && it->display == display) {
+            return enif_make_resource(env, it);
+        }
+    }
+
+    EglDisplayResource* resource = enif_alloc_resource(
+        egl_display_resource_type, sizeof(EglDisplayResource));
+    resource->display = display;
+    resource->alive = 1;
+    resource->intern_next = interned_displays;
+    interned_displays = resource;
+    enif_keep_resource(resource);
+
+    ERL_NIF_TERM term = enif_make_resource(env, resource);
+    enif_release_resource(resource);
+    return term;
+}
+
+static ERL_NIF_TERM beam_intern_config(ErlNifEnv* env, EGLDisplay display, EGLConfig config)
+{
+    EglConfigResource* it;
+    for (it = interned_configs; it != NULL; it = it->intern_next) {
+        if (it->alive && it->config == config) {
+            return enif_make_resource(env, it);
+        }
+    }
+
+    EglConfigResource* resource = enif_alloc_resource(
+        egl_config_resource_type, sizeof(EglConfigResource));
+    resource->display = display;
+    resource->config = config;
+    resource->alive = 1;
+    resource->intern_next = interned_configs;
+    interned_configs = resource;
+    enif_keep_resource(resource);
+
+    ERL_NIF_TERM term = enif_make_resource(env, resource);
+    enif_release_resource(resource);
+    return term;
+}
+
+static ERL_NIF_TERM beam_intern_surface(ErlNifEnv* env, EGLDisplay display, EGLSurface surface)
+{
+    EglSurfaceResource* it;
+    for (it = interned_surfaces; it != NULL; it = it->intern_next) {
+        if (it->alive && it->surface == surface) {
+            return enif_make_resource(env, it);
+        }
+    }
+
+    EglSurfaceResource* resource = enif_alloc_resource(
+        egl_surface_resource_type, sizeof(EglSurfaceResource));
+    resource->display = display;
+    resource->surface = surface;
+    resource->alive = 1;
+    resource->intern_next = interned_surfaces;
+    interned_surfaces = resource;
+    enif_keep_resource(resource);
+
+    ERL_NIF_TERM term = enif_make_resource(env, resource);
+    enif_release_resource(resource);
+    return term;
+}
+
+static ERL_NIF_TERM beam_intern_context(ErlNifEnv* env, EGLDisplay display, EGLContext context)
+{
+    EglContextResource* it;
+    for (it = interned_contexts; it != NULL; it = it->intern_next) {
+        if (it->alive && it->context == context) {
+            return enif_make_resource(env, it);
+        }
+    }
+
+    EglContextResource* resource = enif_alloc_resource(
+        egl_context_resource_type, sizeof(EglContextResource));
+    resource->display = display;
+    resource->context = context;
+    resource->alive = 1;
+    resource->intern_next = interned_contexts;
+    interned_contexts = resource;
+    enif_keep_resource(resource);
+
+    ERL_NIF_TERM term = enif_make_resource(env, resource);
+    enif_release_resource(resource);
+    return term;
+}
+
+static int beam_get_display(ErlNifEnv* env, ERL_NIF_TERM term, EglDisplayResource** out)
+{
+    EglDisplayResource* resource;
+    if (!enif_get_resource(env, term, egl_display_resource_type, (void**)&resource)) {
+        return 0;
+    }
+    if (!resource->alive || resource->display == EGL_NO_DISPLAY) {
+        return 0;
+    }
+    *out = resource;
+    return 1;
+}
+
+static int beam_get_config(ErlNifEnv* env, ERL_NIF_TERM term, EglConfigResource** out)
+{
+    EglConfigResource* resource;
+    if (!enif_get_resource(env, term, egl_config_resource_type, (void**)&resource)) {
+        return 0;
+    }
+    if (!resource->alive || resource->config == NULL) {
+        return 0;
+    }
+    *out = resource;
+    return 1;
+}
+
+static int beam_get_surface(ErlNifEnv* env, ERL_NIF_TERM term, EglSurfaceResource** out)
+{
+    EglSurfaceResource* resource;
+    if (!enif_get_resource(env, term, egl_surface_resource_type, (void**)&resource)) {
+        return 0;
+    }
+    if (!resource->alive || resource->surface == EGL_NO_SURFACE) {
+        return 0;
+    }
+    *out = resource;
+    return 1;
+}
+
+static int beam_get_context(ErlNifEnv* env, ERL_NIF_TERM term, EglContextResource** out)
+{
+    EglContextResource* resource;
+    if (!enif_get_resource(env, term, egl_context_resource_type, (void**)&resource)) {
+        return 0;
+    }
+    if (!resource->alive || resource->context == EGL_NO_CONTEXT) {
+        return 0;
+    }
+    *out = resource;
+    return 1;
+}
+
+static void beam_poison_display_family(EGLDisplay display, int destroy_executors)
+{
+    EglContextResource* context_it = interned_contexts;
+    while (context_it != NULL) {
+        EglContextResource* next = context_it->intern_next;
+        if (context_it->alive && context_it->display == display) {
+            if (destroy_executors && context_it->context != EGL_NO_CONTEXT) {
+                CommandExecutor* command_executor =
+                    context_map_get(context_map, context_it->context);
+                if (command_executor != NULL) {
+                    command_executor_destroy(command_executor);
+                    context_map_erase(context_map, context_it->context);
+                }
+                active_context_map_remove_by_context(&active_context_map, context_it->context);
+            }
+            beam_poison_context(context_it);
+        }
+        context_it = next;
+    }
+
+    EglSurfaceResource* surface_it = interned_surfaces;
+    while (surface_it != NULL) {
+        EglSurfaceResource* next = surface_it->intern_next;
+        if (surface_it->alive && surface_it->display == display) {
+            beam_poison_surface(surface_it);
+        }
+        surface_it = next;
+    }
+
+    EglConfigResource* config_it = interned_configs;
+    while (config_it != NULL) {
+        EglConfigResource* next = config_it->intern_next;
+        if (config_it->alive && config_it->display == display) {
+            beam_poison_config(config_it);
+        }
+        config_it = next;
+    }
+
+    EglDisplayResource* display_it = interned_displays;
+    while (display_it != NULL) {
+        EglDisplayResource* next = display_it->intern_next;
+        if (display_it->alive && display_it->display == display) {
+            beam_poison_display(display_it);
+        }
+        display_it = next;
+    }
+}
+
 static void egl_display_resource_dtor(ErlNifEnv* env, void* obj) {
     (void)env;
-    (void)obj;
+    EglDisplayResource* resource = obj;
+    if (resource->alive) {
+        resource->alive = 0;
+        resource->display = EGL_NO_DISPLAY;
+        beam_unlink_display(resource);
+    }
 }
 
 static void egl_config_resource_dtor(ErlNifEnv* env, void* obj) {
     (void)env;
-    (void)obj;
+    EglConfigResource* resource = obj;
+    if (resource->alive) {
+        resource->alive = 0;
+        resource->config = NULL;
+        resource->display = EGL_NO_DISPLAY;
+        beam_unlink_config(resource);
+    }
 }
 
 static void egl_surface_resource_dtor(ErlNifEnv* env, void* obj) {
     (void)env;
-    (void)obj;
+    EglSurfaceResource* resource = obj;
+    if (resource->alive) {
+        resource->alive = 0;
+        resource->surface = EGL_NO_SURFACE;
+        resource->display = EGL_NO_DISPLAY;
+        beam_unlink_surface(resource);
+    }
 }
 
 static void egl_context_resource_dtor(ErlNifEnv* env, void* obj) {
     (void)env;
-    (void)obj;
+    EglContextResource* resource = obj;
+    if (resource->alive) {
+        resource->alive = 0;
+        resource->context = EGL_NO_CONTEXT;
+        resource->display = EGL_NO_DISPLAY;
+        beam_unlink_context(resource);
+    }
 }
 
 static void egl_client_buffer_resource_dtor(ErlNifEnv* env, void* obj) {
@@ -305,11 +651,11 @@ static ERL_NIF_TERM nif_choose_config(ErlNifEnv* env, int argc, const ERL_NIF_TE
     // side so we just pass it as is to eglChooseConfig. We just have to
     // convert it into a C array and append EGL_NONE to it.
 
-    void* display_resource;
-    if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
+    EglDisplayResource* display_resource;
+    if (!beam_get_display(env, argv[0], &display_resource)) {
         return enif_make_badarg(env);
     }
-    EGLDisplay display = *((EGLDisplay*)display_resource);
+    EGLDisplay display = display_resource->display;
 
     ERL_NIF_TERM list = argv[1];
     unsigned int list_length;
@@ -357,9 +703,7 @@ static ERL_NIF_TERM nif_choose_config(ErlNifEnv* env, int argc, const ERL_NIF_TE
         else {
             ERL_NIF_TERM config_list = enif_make_list(env, 0);
             for (EGLint i = 0; i < num_configs; i++) {
-                void* config_resource = enif_alloc_resource(egl_config_resource_type, sizeof(EGLConfig));
-                *((EGLConfig*)config_resource) = configs[i];
-                ERL_NIF_TERM config_term = enif_make_resource(env, config_resource);
+                ERL_NIF_TERM config_term = beam_intern_config(env, display, configs[i]);
                 config_list = enif_make_list_cell(env, config_term, config_list);
             }
 
@@ -395,28 +739,28 @@ static ERL_NIF_TERM nif_create_context(ErlNifEnv* env, int argc, const ERL_NIF_T
     // side so we just pass it as is to eglCreateContext. We just have
     // to convert it into a C array and append EGL_NONE to it.
 
-    void* display_resource;
-    if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
+    EglDisplayResource* display_resource;
+    if (!beam_get_display(env, argv[0], &display_resource)) {
         return enif_make_badarg(env);
     }
-    EGLDisplay display = *((EGLDisplay*)display_resource);
+    EGLDisplay display = display_resource->display;
 
-    void* config_resource;
-    if (!enif_get_resource(env, argv[1], egl_config_resource_type, &config_resource)) {
+    EglConfigResource* config_resource;
+    if (!beam_get_config(env, argv[1], &config_resource)) {
         return enif_make_badarg(env);
     }
-    EGLConfig config = *((EGLConfig*)config_resource);
+    EGLConfig config = config_resource->config;
 
     EGLContext share_context;
     if (enif_is_identical(argv[2], enif_make_atom(env, "no_context"))) {
         share_context = EGL_NO_CONTEXT;
     }
     else {
-        void* share_context_resource;
-        if (!enif_get_resource(env, argv[2], egl_context_resource_type, &share_context_resource)) {
+        EglContextResource* share_context_resource;
+        if (!beam_get_context(env, argv[2], &share_context_resource)) {
             return enif_make_badarg(env);
         }
-        share_context = *((EGLContext*)share_context_resource);
+        share_context = share_context_resource->context;
     }
 
     ERL_NIF_TERM list = argv[3];
@@ -449,16 +793,13 @@ static ERL_NIF_TERM nif_create_context(ErlNifEnv* env, int argc, const ERL_NIF_T
         return not_ok_atom;
     }
     else {
-        void* context_resource = enif_alloc_resource(egl_context_resource_type, sizeof(EGLContext));
-        *((EGLContext*)context_resource) = result;
-
         CommandExecutor* command_executor = context_map_put(context_map, result);
         command_executor_init(command_executor);
 
         return enif_make_tuple2(
             env,
             enif_make_atom(env, "ok"),
-            enif_make_resource(env, context_resource)
+            beam_intern_context(env, display, result)
         );
     }
 }
@@ -470,17 +811,17 @@ static ERL_NIF_TERM nif_create_pbuffer_surface(ErlNifEnv* env, int argc, const E
     // Second argument is a list of integers that was prepared on the Erlang
     // side so we just pass it as is to eglCreatePbufferSurface. We just have
     // to convert it into a C array and append EGL_NONE to it.
-    void* display_resource;
-    if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
+    EglDisplayResource* display_resource;
+    if (!beam_get_display(env, argv[0], &display_resource)) {
         return enif_make_badarg(env);
     }
-    EGLDisplay display = *((EGLDisplay*)display_resource);
+    EGLDisplay display = display_resource->display;
 
-    void* config_resource;
-    if (!enif_get_resource(env, argv[1], egl_config_resource_type, &config_resource)) {
+    EglConfigResource* config_resource;
+    if (!beam_get_config(env, argv[1], &config_resource)) {
         return enif_make_badarg(env);
     }
-    EGLConfig config = *((EGLConfig*)config_resource);
+    EGLConfig config = config_resource->config;
 
     ERL_NIF_TERM list = argv[2];
     unsigned int list_length;
@@ -512,13 +853,10 @@ static ERL_NIF_TERM nif_create_pbuffer_surface(ErlNifEnv* env, int argc, const E
         return not_ok_atom;
     }
     else {
-        void* surface_resource = enif_alloc_resource(egl_surface_resource_type, sizeof(EGLSurface));
-        *((EGLSurface*)surface_resource) = result;
-
         return enif_make_tuple2(
             env,
             enif_make_atom(env, "ok"),
-            enif_make_resource(env, surface_resource)
+            beam_intern_surface(env, display, result)
         );
     }
 }
@@ -539,17 +877,17 @@ static ERL_NIF_TERM nif_create_window_surface(ErlNifEnv* env, int argc, const ER
 {
     (void)argc;
 
-    void* display_resource;
-    if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
+    EglDisplayResource* display_resource;
+    if (!beam_get_display(env, argv[0], &display_resource)) {
         return enif_make_badarg(env);
     }
-    EGLDisplay display = *((EGLDisplay*)display_resource);
+    EGLDisplay display = display_resource->display;
 
-    void* config_resource;
-    if (!enif_get_resource(env, argv[1], egl_config_resource_type, &config_resource)) {
+    EglConfigResource* config_resource;
+    if (!beam_get_config(env, argv[1], &config_resource)) {
         return enif_make_badarg(env);
     }
-    EGLConfig config = *((EGLConfig*)config_resource);
+    EGLConfig config = config_resource->config;
 
     ErlNifResourceType* egl_window_resource_type = get_egl_window_resource_type(env);
     void* native_window_resource;
@@ -589,13 +927,10 @@ static ERL_NIF_TERM nif_create_window_surface(ErlNifEnv* env, int argc, const ER
         return not_ok_atom;
     }
     else {
-        void* surface_resource = enif_alloc_resource(egl_surface_resource_type, sizeof(EGLSurface));
-        *((EGLSurface*)surface_resource) = result;
-
         return enif_make_tuple2(
             env,
             enif_make_atom(env, "ok"),
-            enif_make_resource(env, surface_resource)
+            beam_intern_surface(env, display, result)
         );
     }
 }
@@ -604,17 +939,17 @@ static ERL_NIF_TERM nif_destroy_context(ErlNifEnv* env, int argc, const ERL_NIF_
 {
     (void)argc;
 
-    void* display_resource;
-    if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
+    EglDisplayResource* display_resource;
+    if (!beam_get_display(env, argv[0], &display_resource)) {
         return enif_make_badarg(env);
     }
-    EGLDisplay display = *((EGLDisplay*)display_resource);
+    EGLDisplay display = display_resource->display;
 
-    void* context_resource;
-    if (!enif_get_resource(env, argv[1], egl_context_resource_type, &context_resource)) {
+    EglContextResource* context_resource;
+    if (!beam_get_context(env, argv[1], &context_resource)) {
         return enif_make_badarg(env);
     }
-    EGLContext context = *((EGLContext*)context_resource);
+    EGLContext context = context_resource->context;
 
     EGLBoolean result = eglDestroyContext(display, context);
 
@@ -625,6 +960,8 @@ static ERL_NIF_TERM nif_destroy_context(ErlNifEnv* env, int argc, const ERL_NIF_
         command_executor_destroy(command_executor);
         bool success = context_map_erase(context_map, context);
         assert(success);
+        active_context_map_remove_by_context(&active_context_map, context);
+        beam_poison_context(context_resource);
 
         return ok_atom;
     }
@@ -637,20 +974,22 @@ static ERL_NIF_TERM nif_destroy_surface(ErlNifEnv* env, int argc, const ERL_NIF_
 {
     (void)argc;
 
-    void* display_resource;
-    if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
+    EglDisplayResource* display_resource;
+    if (!beam_get_display(env, argv[0], &display_resource)) {
         return enif_make_badarg(env);
     }
-    EGLDisplay display = *((EGLDisplay*)display_resource);
+    EGLDisplay display = display_resource->display;
 
-    void* surface_resource;
-    if (!enif_get_resource(env, argv[1], egl_surface_resource_type, &surface_resource)) {
+    EglSurfaceResource* surface_resource;
+    if (!beam_get_surface(env, argv[1], &surface_resource)) {
         return enif_make_badarg(env);
     }
-    EGLSurface surface = *((EGLSurface*)surface_resource);
+    EGLSurface surface = surface_resource->surface;
 
     EGLBoolean result = eglDestroySurface(display, surface);
     if (result == EGL_TRUE) {
+        active_context_map_remove_by_surface(&active_context_map, surface);
+        beam_poison_surface(surface_resource);
         return ok_atom;
     }
     else {
@@ -662,17 +1001,17 @@ static ERL_NIF_TERM nif_get_config_attrib(ErlNifEnv* env, int argc, const ERL_NI
 {
     (void)argc;
 
-    void* display_resource;
-    if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
+    EglDisplayResource* display_resource;
+    if (!beam_get_display(env, argv[0], &display_resource)) {
         return enif_make_badarg(env);
     }
-    EGLDisplay display = *((EGLDisplay*)display_resource);
+    EGLDisplay display = display_resource->display;
 
-    void* config_resource;
-    if (!enif_get_resource(env, argv[1], egl_config_resource_type, &config_resource)) {
+    EglConfigResource* config_resource;
+    if (!beam_get_config(env, argv[1], &config_resource)) {
         return enif_make_badarg(env);
     }
-    EGLConfig config = *((EGLConfig*)config_resource);
+    EGLConfig config = config_resource->config;
 
     EGLint attribute;
     if (!enif_get_int(env, argv[2], &attribute)) {
@@ -699,11 +1038,11 @@ static ERL_NIF_TERM nif_get_configs(ErlNifEnv* env, int argc, const ERL_NIF_TERM
 {
     (void)argc;
 
-    void* display_resource;
-    if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
+    EglDisplayResource* display_resource;
+    if (!beam_get_display(env, argv[0], &display_resource)) {
         return enif_make_badarg(env);
     }
-    EGLDisplay display = *((EGLDisplay*)display_resource);
+    EGLDisplay display = display_resource->display;
 
     EGLint num_configs;
     EGLBoolean result = eglGetConfigs(display, NULL, 0, &num_configs);
@@ -725,9 +1064,7 @@ static ERL_NIF_TERM nif_get_configs(ErlNifEnv* env, int argc, const ERL_NIF_TERM
         else {
             ERL_NIF_TERM config_list = enif_make_list(env, 0);
             for (EGLint i = 0; i < num_configs; i++) {
-                void* config_resource = enif_alloc_resource(egl_config_resource_type, sizeof(EGLConfig));
-                *((EGLConfig*)config_resource) = configs[i];
-                ERL_NIF_TERM config_term = enif_make_resource(env, config_resource);
+                ERL_NIF_TERM config_term = beam_intern_config(env, display, configs[i]);
                 config_list = enif_make_list_cell(env, config_term, config_list);
             }
 
@@ -747,16 +1084,13 @@ static ERL_NIF_TERM nif_get_current_display(ErlNifEnv* env, int argc, const ERL_
     (void)argc;
     (void)argv;
 
-    EGLDisplay display = eglGetCurrentDisplay();
-    if (display == EGL_NO_DISPLAY) {
+    ErlNifPid pid;
+    enif_self(env, &pid);
+    PidContextEntry* entry = active_context_map_entry_by_pid(&active_context_map, &pid);
+    if (entry == NULL || entry->display == EGL_NO_DISPLAY) {
         return egl_no_display_atom;
     }
-    else {
-        void* display_resource = enif_alloc_resource(egl_display_resource_type, sizeof(EGLDisplay));
-        *((EGLDisplay*)display_resource) = display;
-
-        return enif_make_resource(env, display_resource);
-    }
+    return beam_intern_display(env, entry->display);
 }
 
 static ERL_NIF_TERM nif_get_current_surface(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
@@ -768,16 +1102,26 @@ static ERL_NIF_TERM nif_get_current_surface(ErlNifEnv* env, int argc, const ERL_
         return enif_make_badarg(env);
     }
 
-    EGLSurface surface = eglGetCurrentSurface(readdraw);
+    ErlNifPid pid;
+    enif_self(env, &pid);
+    PidContextEntry* entry = active_context_map_entry_by_pid(&active_context_map, &pid);
+    if (entry == NULL) {
+        return egl_no_surface_atom;
+    }
+
+    EGLSurface surface;
+    if (readdraw == EGL_DRAW) {
+        surface = entry->draw;
+    } else if (readdraw == EGL_READ) {
+        surface = entry->read;
+    } else {
+        return enif_make_badarg(env);
+    }
+
     if (surface == EGL_NO_SURFACE) {
         return egl_no_surface_atom;
     }
-    else {
-        void* surface_resource = enif_alloc_resource(egl_surface_resource_type, sizeof(EGLSurface));
-        *((EGLSurface*)surface_resource) = surface;
-
-        return enif_make_resource(env, surface_resource);
-    }
+    return beam_intern_surface(env, entry->display, surface);
 }
 
 static ERL_NIF_TERM nif_get_display(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
@@ -793,12 +1137,7 @@ static ERL_NIF_TERM nif_get_display(ErlNifEnv* env, int argc, const ERL_NIF_TERM
     if (display == EGL_NO_DISPLAY) {
         return enif_make_atom(env, "no_display");
     }
-    else {
-        void* display_resource = enif_alloc_resource(egl_display_resource_type, sizeof(EGLDisplay));
-        *((EGLDisplay*)display_resource) = display;
-
-        return enif_make_resource(env, display_resource);
-    }
+    return beam_intern_display(env, display);
 }
 
 static ERL_NIF_TERM nif_get_error(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
@@ -848,11 +1187,11 @@ static ERL_NIF_TERM nif_initialize(ErlNifEnv* env, int argc, const ERL_NIF_TERM 
 {
     (void)argc;
 
-    void* display_resource;
-    if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
+    EglDisplayResource* display_resource;
+    if (!beam_get_display(env, argv[0], &display_resource)) {
         return enif_make_badarg(env);
     }
-    EGLDisplay display = *((EGLDisplay*)display_resource);
+    EGLDisplay display = display_resource->display;
 
     EGLint major, minor;
     EGLBoolean result = eglInitialize(display, &major, &minor);
@@ -872,45 +1211,42 @@ static ERL_NIF_TERM bind_context_nif(ErlNifEnv* env, int argc, const ERL_NIF_TER
 {
     (void)argc;
 
-    void* display_resource;
-    if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
+    EglDisplayResource* display_resource;
+    if (!beam_get_display(env, argv[0], &display_resource)) {
         return enif_make_badarg(env);
     }
-    EGLDisplay display = *((EGLDisplay*)display_resource);
+    EGLDisplay display = display_resource->display;
 
-    EGLContext draw;
-    if (enif_is_identical(argv[1], enif_make_atom(env, "no_surface"))) {
+    EGLSurface draw;
+    if (enif_is_identical(argv[1], egl_no_surface_atom)) {
         draw = EGL_NO_SURFACE;
     } else {
-        void* draw_resource;
-        if (!enif_get_resource(env, argv[1], egl_surface_resource_type, &draw_resource)) {
+        EglSurfaceResource* draw_resource;
+        if (!beam_get_surface(env, argv[1], &draw_resource)) {
             return enif_make_badarg(env);
         }
-        draw = *((EGLSurface*)draw_resource);
+        draw = draw_resource->surface;
     }
 
-    EGLContext read;
-    if (enif_is_identical(argv[2], enif_make_atom(env, "no_surface"))) {
+    EGLSurface read;
+    if (enif_is_identical(argv[2], egl_no_surface_atom)) {
         read = EGL_NO_SURFACE;
     } else {
-        void* read_resource;
-        if (!enif_get_resource(env, argv[2], egl_surface_resource_type, &read_resource)) {
+        EglSurfaceResource* read_resource;
+        if (!beam_get_surface(env, argv[2], &read_resource)) {
             return enif_make_badarg(env);
         }
-        read = *((EGLSurface*)read_resource);
+        read = read_resource->surface;
     }
 
-    EGLContext context;
-    void* context_resource;
-    if (!enif_get_resource(env, argv[3], egl_context_resource_type, &context_resource)) {
+    EglContextResource* context_resource;
+    if (!beam_get_context(env, argv[3], &context_resource)) {
         return enif_make_badarg(env);
     }
-    context = *((EGLContext*)context_resource);
+    EGLContext context = context_resource->context;
 
     EGLBoolean result = eglMakeCurrent(display, draw, read, context);
     if (result == EGL_TRUE) {
-        // The state of active contexts has changed, we update our internal map
-        // to reflect this change.
         ErlNifPid pid;
         enif_self(env, &pid);
 
@@ -920,7 +1256,8 @@ static ERL_NIF_TERM bind_context_nif(ErlNifEnv* env, int argc, const ERL_NIF_TER
             assert(success);
         }
 
-        bool success = active_context_map_add(&active_context_map, &pid, context);
+        bool success = active_context_map_add(
+            &active_context_map, &pid, display, draw, read, context);
         assert(success);
 
         return ok_atom;
@@ -934,32 +1271,32 @@ static ERL_NIF_TERM unbind_context_nif(ErlNifEnv* env, int argc, const ERL_NIF_T
 {
     (void)argc;
 
-    void* display_resource;
-    if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
+    EglDisplayResource* display_resource;
+    if (!beam_get_display(env, argv[0], &display_resource)) {
         return enif_make_badarg(env);
     }
-    EGLDisplay display = *((EGLDisplay*)display_resource);
+    EGLDisplay display = display_resource->display;
 
-    EGLContext draw;
-    if (enif_is_identical(argv[1], enif_make_atom(env, "no_surface"))) {
+    EGLSurface draw;
+    if (enif_is_identical(argv[1], egl_no_surface_atom)) {
         draw = EGL_NO_SURFACE;
     } else {
-        void* draw_resource;
-        if (!enif_get_resource(env, argv[1], egl_surface_resource_type, &draw_resource)) {
+        EglSurfaceResource* draw_resource;
+        if (!beam_get_surface(env, argv[1], &draw_resource)) {
             return enif_make_badarg(env);
         }
-        draw = *((EGLSurface*)draw_resource);
+        draw = draw_resource->surface;
     }
 
-    EGLContext read;
-    if (enif_is_identical(argv[2], enif_make_atom(env, "no_surface"))) {
+    EGLSurface read;
+    if (enif_is_identical(argv[2], egl_no_surface_atom)) {
         read = EGL_NO_SURFACE;
     } else {
-        void* read_resource;
-        if (!enif_get_resource(env, argv[2], egl_surface_resource_type, &read_resource)) {
+        EglSurfaceResource* read_resource;
+        if (!beam_get_surface(env, argv[2], &read_resource)) {
             return enif_make_badarg(env);
         }
-        read = *((EGLSurface*)read_resource);
+        read = read_resource->surface;
     }
 
     EGLBoolean result = eglMakeCurrent(display, draw, read, EGL_NO_CONTEXT);
@@ -1008,11 +1345,11 @@ static ERL_NIF_TERM nif_make_current(ErlNifEnv* env, int argc, const ERL_NIF_TER
         // This is a "bind" request. We execute it on the OS thread associated
         // to the EGL context.
         // Note: we let the function update the active context map.
-        void* context_resource;
-        if (!enif_get_resource(env, argv[3], egl_context_resource_type, &context_resource)) {
+        EglContextResource* context_resource;
+        if (!beam_get_context(env, argv[3], &context_resource)) {
             return enif_make_badarg(env);
         }
-        EGLContext context = *((EGLContext*)context_resource);
+        EGLContext context = context_resource->context;
 
         CommandExecutor* command_executor = context_map_get(context_map, context);
         assert(command_executor != NULL);
@@ -1034,17 +1371,17 @@ static ERL_NIF_TERM nif_query_context(ErlNifEnv* env, int argc, const ERL_NIF_TE
 {
     (void)argc;
 
-    void* display_resource;
-    if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
+    EglDisplayResource* display_resource;
+    if (!beam_get_display(env, argv[0], &display_resource)) {
         return enif_make_badarg(env);
     }
-    EGLDisplay display = *((EGLDisplay*)display_resource);
+    EGLDisplay display = display_resource->display;
 
-    void* context_resource;
-    if (!enif_get_resource(env, argv[1], egl_context_resource_type, &context_resource)) {
+    EglContextResource* context_resource;
+    if (!beam_get_context(env, argv[1], &context_resource)) {
         return enif_make_badarg(env);
     }
-    EGLContext context = *((EGLContext*)context_resource);
+    EGLContext context = context_resource->context;
 
     EGLint attribute;
     if (!enif_get_int(env, argv[2], &attribute)) {
@@ -1074,11 +1411,11 @@ static ERL_NIF_TERM nif_query_string(ErlNifEnv* env, int argc, const ERL_NIF_TER
         display = EGL_NO_DISPLAY;
     }
     else {
-        void* display_resource;
-        if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
+        EglDisplayResource* display_resource;
+        if (!beam_get_display(env, argv[0], &display_resource)) {
             return enif_make_badarg(env);
         }
-        display = *((EGLDisplay*)display_resource);
+        display = display_resource->display;
     }
 
     EGLint name;
@@ -1116,17 +1453,17 @@ static ERL_NIF_TERM nif_query_surface(ErlNifEnv* env, int argc, const ERL_NIF_TE
 {
     (void)argc;
 
-    void* display_resource;
-    if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
+    EglDisplayResource* display_resource;
+    if (!beam_get_display(env, argv[0], &display_resource)) {
         return enif_make_badarg(env);
     }
-    EGLDisplay display = *((EGLDisplay*)display_resource);
+    EGLDisplay display = display_resource->display;
 
-    void* surface_resource;
-    if (!enif_get_resource(env, argv[1], egl_surface_resource_type, &surface_resource)) {
+    EglSurfaceResource* surface_resource;
+    if (!beam_get_surface(env, argv[1], &surface_resource)) {
         return enif_make_badarg(env);
     }
-    EGLSurface surface = *((EGLSurface*)surface_resource);
+    EGLSurface surface = surface_resource->surface;
 
     EGLint attribute;
     if (!enif_get_int(env, argv[2], &attribute)) {
@@ -1151,17 +1488,17 @@ static ERL_NIF_TERM egl_swap_buffers_nif(ErlNifEnv* env, int argc, const ERL_NIF
 {
     (void)argc;
 
-    void* display_resource;
-    if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
+    EglDisplayResource* display_resource;
+    if (!beam_get_display(env, argv[0], &display_resource)) {
         return enif_make_badarg(env);
     }
-    EGLDisplay display = *((EGLDisplay*)display_resource);
+    EGLDisplay display = display_resource->display;
 
-    void* surface_resource;
-    if (!enif_get_resource(env, argv[1], egl_surface_resource_type, &surface_resource)) {
+    EglSurfaceResource* surface_resource;
+    if (!beam_get_surface(env, argv[1], &surface_resource)) {
         return enif_make_badarg(env);
     }
-    EGLSurface surface = *((EGLSurface*)surface_resource);
+    EGLSurface surface = surface_resource->surface;
 
     EGLBoolean result = eglSwapBuffers(display, surface);
     if (result == EGL_TRUE) {
@@ -1186,14 +1523,15 @@ static ERL_NIF_TERM nif_terminate(ErlNifEnv* env, int argc, const ERL_NIF_TERM a
 {
     (void)argc;
 
-    void* display_resource;
-    if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
+    EglDisplayResource* display_resource;
+    if (!beam_get_display(env, argv[0], &display_resource)) {
         return enif_make_badarg(env);
     }
-    EGLDisplay display = *((EGLDisplay*)display_resource);
+    EGLDisplay display = display_resource->display;
 
     EGLBoolean result = eglTerminate(display);
     if (result == EGL_TRUE) {
+        beam_poison_display_family(display, 1);
         return ok_atom;
     }
     else {
@@ -1259,17 +1597,17 @@ static ERL_NIF_TERM nif_surface_attrib(ErlNifEnv* env, int argc, const ERL_NIF_T
 {
     (void)argc;
 
-    void* display_resource;
-    if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
+    EglDisplayResource* display_resource;
+    if (!beam_get_display(env, argv[0], &display_resource)) {
         return enif_make_badarg(env);
     }
-    EGLDisplay display = *((EGLDisplay*)display_resource);
+    EGLDisplay display = display_resource->display;
 
-    void* surface_resource;
-    if (!enif_get_resource(env, argv[1], egl_surface_resource_type, &surface_resource)) {
+    EglSurfaceResource* surface_resource;
+    if (!beam_get_surface(env, argv[1], &surface_resource)) {
         return enif_make_badarg(env);
     }
-    EGLSurface surface = *((EGLSurface*)surface_resource);
+    EGLSurface surface = surface_resource->surface;
 
     EGLint attribute;
     if (!enif_get_int(env, argv[2], &attribute)) {
@@ -1294,11 +1632,11 @@ static ERL_NIF_TERM nif_swap_interval(ErlNifEnv* env, int argc, const ERL_NIF_TE
 {
     (void)argc;
 
-    void* display_resource;
-    if (!enif_get_resource(env, argv[0], egl_display_resource_type, &display_resource)) {
+    EglDisplayResource* display_resource;
+    if (!beam_get_display(env, argv[0], &display_resource)) {
         return enif_make_badarg(env);
     }
-    EGLDisplay display = *((EGLDisplay*)display_resource);
+    EGLDisplay display = display_resource->display;
 
     EGLint interval;
     if (!enif_get_int(env, argv[1], &interval)) {
@@ -1388,16 +1726,13 @@ static ERL_NIF_TERM nif_get_current_context(ErlNifEnv* env, int argc, const ERL_
     (void)argc;
     (void)argv;
 
-    EGLContext context = eglGetCurrentContext();
-    if (context == EGL_NO_CONTEXT) {
+    ErlNifPid pid;
+    enif_self(env, &pid);
+    PidContextEntry* entry = active_context_map_entry_by_pid(&active_context_map, &pid);
+    if (entry == NULL || entry->context == EGL_NO_CONTEXT) {
         return egl_no_context_atom;
     }
-    else {
-        void* context_resource = enif_alloc_resource(egl_context_resource_type, sizeof(EGLContext));
-        *((EGLContext*)context_resource) = context;
-
-        return enif_make_resource(env, context_resource);
-    }
+    return beam_intern_context(env, entry->display, entry->context);
 }
 
 #if 0
@@ -1505,11 +1840,7 @@ static ERL_NIF_TERM nif_get_platform_display(ErlNifEnv* env, int argc, const ERL
         return egl_no_display_atom;
     }
 
-    void* display_resource = enif_alloc_resource(egl_display_resource_type, sizeof(EGLDisplay));
-    *((EGLDisplay*)display_resource) = display;
-    ERL_NIF_TERM term = enif_make_resource(env, display_resource);
-    enif_release_resource(display_resource);
-    return term;
+    return beam_intern_display(env, display);
 }
 
 #if 0

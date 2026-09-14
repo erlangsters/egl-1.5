@@ -17,6 +17,9 @@
 
 typedef struct {
     ErlNifPid pid;
+    EGLDisplay display;
+    EGLSurface draw;
+    EGLSurface read;
     EGLContext context;
 } PidContextEntry;
 
@@ -27,11 +30,19 @@ typedef struct {
 
 void active_context_map_init(ActiveContextMap* map);
 
-bool active_context_map_add(ActiveContextMap* map, const ErlNifPid* pid, EGLContext context);
+bool active_context_map_add(
+    ActiveContextMap* map,
+    const ErlNifPid* pid,
+    EGLDisplay display,
+    EGLSurface draw,
+    EGLSurface read,
+    EGLContext context);
 bool active_context_map_remove_by_pid(ActiveContextMap* map, const ErlNifPid* pid);
 bool active_context_map_remove_by_context(ActiveContextMap* map, EGLContext context);
+void active_context_map_remove_by_surface(ActiveContextMap* map, EGLSurface surface);
 
 size_t active_context_map_size(const ActiveContextMap* map);
 
 EGLContext* active_context_map_find_by_pid(ActiveContextMap* map, const ErlNifPid* pid);
+PidContextEntry* active_context_map_entry_by_pid(ActiveContextMap* map, const ErlNifPid* pid);
 ErlNifPid* active_context_map_find_by_context(ActiveContextMap* map, EGLContext context);

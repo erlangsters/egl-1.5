@@ -16,12 +16,18 @@ void active_context_map_init(ActiveContextMap* map) {
     memset(map, 0, sizeof(ActiveContextMap));
 }
 
-bool active_context_map_add(ActiveContextMap* map, const ErlNifPid* pid, EGLContext context) {
+bool active_context_map_add(
+    ActiveContextMap* map,
+    const ErlNifPid* pid,
+    EGLDisplay display,
+    EGLSurface draw,
+    EGLSurface read,
+    EGLContext context
+) {
     if (map == NULL || pid == NULL || map->count >= MAX_ACTIVE_CONTEXTS) {
         return false;
     }
 
-    // Check if PID or context already exists
     for (size_t i = 0; i < map->count; i++) {
         if (enif_compare_pids(pid, &map->entries[i].pid) == 0 ||
             map->entries[i].context == context) {
@@ -29,8 +35,10 @@ bool active_context_map_add(ActiveContextMap* map, const ErlNifPid* pid, EGLCont
         }
     }
 
-    // Add new entry
     map->entries[map->count].pid = *pid;
+    map->entries[map->count].display = display;
+    map->entries[map->count].draw = draw;
+    map->entries[map->count].read = read;
     map->entries[map->count].context = context;
     map->count++;
     return true;
@@ -52,6 +60,25 @@ bool active_context_map_remove_by_pid(ActiveContextMap* map, const ErlNifPid* pi
         }
     }
     return false;
+}
+
+void active_context_map_remove_by_surface(ActiveContextMap* map, EGLSurface surface)
+{
+    if (map == NULL) {
+        return;
+    }
+
+    size_t i = 0;
+    while (i < map->count) {
+        if (map->entries[i].draw == surface || map->entries[i].read == surface) {
+            if (i < map->count - 1) {
+                map->entries[i] = map->entries[map->count - 1];
+            }
+            map->count--;
+        } else {
+            i++;
+        }
+    }
 }
 
 bool active_context_map_remove_by_context(ActiveContextMap* map, EGLContext context) {
@@ -79,17 +106,25 @@ size_t active_context_map_size(const ActiveContextMap* map) {
     return map->count;
 }
 
-EGLContext* active_context_map_find_by_pid(ActiveContextMap* map, const ErlNifPid* pid) {
+PidContextEntry* active_context_map_entry_by_pid(ActiveContextMap* map, const ErlNifPid* pid) {
     if (map == NULL || pid == NULL) {
         return NULL;
     }
 
     for (size_t i = 0; i < map->count; i++) {
         if (enif_compare_pids(pid, &map->entries[i].pid) == 0) {
-            return &map->entries[i].context;
+            return &map->entries[i];
         }
     }
     return NULL;
+}
+
+EGLContext* active_context_map_find_by_pid(ActiveContextMap* map, const ErlNifPid* pid) {
+    PidContextEntry* entry = active_context_map_entry_by_pid(map, pid);
+    if (entry == NULL) {
+        return NULL;
+    }
+    return &entry->context;
 }
 
 ErlNifPid* active_context_map_find_by_context(ActiveContextMap* map, EGLContext context) {
