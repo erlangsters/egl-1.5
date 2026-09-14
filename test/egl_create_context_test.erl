@@ -27,5 +27,6 @@ egl_create_context_test() ->
     test_egl:print_context(Display, Context),
 
     ok = egl:destroy_context(Display, Context),
+    ?assertError(badarg, egl:destroy_context(Display, Context)),
 
     ok.

@@ -4,5 +4,7 @@
 egl_initialize_test() ->
     Display = egl:get_display(default_display),
     {ok, {_, _}} = egl:initialize(Display),
+    ok = egl:terminate(Display),
+    ?assertError(badarg, egl:initialize(Display)),
 
     ok.

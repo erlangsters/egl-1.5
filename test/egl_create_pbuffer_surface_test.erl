@@ -27,10 +27,15 @@ egl_create_pbuffer_surface_test() ->
         {context_major_version, 3}
     ]),
     ok = egl:make_current(Display, Surface, Surface, Context),
+    Context = egl:get_current_context(),
+    Surface = egl:get_current_surface(draw),
+    Display = egl:get_current_display(),
     ok = egl:make_current(Display, no_surface, no_surface, no_context),
+    no_context = egl:get_current_context(),
     ok = egl:make_current(Display, no_surface, no_surface, no_context),
     ok = egl:destroy_context(Display, Context),
 
     ok = egl:destroy_surface(Display, Surface),
+    ?assertError(badarg, egl:destroy_surface(Display, Surface)),
 
     ok.

@@ -15,5 +15,6 @@ egl_destroy_surface_test() ->
     test_egl:print_surface(Display, Surface),
 
     ok = egl:destroy_surface(Display, Surface),
+    ?assertError(badarg, egl:destroy_surface(Display, Surface)),
 
     ok.
