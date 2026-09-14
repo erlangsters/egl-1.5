@@ -1,134 +1,85 @@
-# API Mapping
+# API mapping
 
-A low-level C API cannot translate the same in the higher-level Erlang and 
-Elixir programming language. Therefore, adjustments have to be made.
+This is a binding of EGL 1.5. Existing EGL knowledge still applies. The mapping is small, consistent, and documented here when it is not obvious.
 
-This document explains the API mapping rules that were rigorously followed 
-during the development of the binding.
+The public module is `egl`. First release is the OpenGL (and ES) plus GLFW path. Pixmap, image, sync, teximage, and OpenVG client buffers are not exported.
 
-## Idiomatic API
+## Mapping rules
 
-Perhaps the most obvious
-This binding follows a very consistent set of mapping rules. All those rules 
-are documented (unless trivial) and when exceptions are made, they're 
-documented as well.
+- EGL enums become atoms whenever a closed set exists. For instance, `bind_api/1` takes `opengl_api | opengl_es_api | openvg_api`.
+- EGL bitfields become lists of atoms. For instance, `{surface_type, [window_bit, pbuffer_bit]}`.
+- An integer that EGL documents as only `EGL_TRUE` or `EGL_FALSE` becomes `boolean()`, or `ok` / `not_ok` when that is the C success/failure shape.
+- `EGL_NO_DISPLAY`, `EGL_NO_SURFACE`, and `EGL_NO_CONTEXT` become `no_display`, `no_surface`, and `no_context`.
+- `eglGetError` stays `get_error/0`. It returns atoms such as `success`, `bad_alloc`, and `bad_match`.
+- `eglGetProcAddress` is not implemented. The OpenGL bindings do not load extensions this way.
+- Display, config, surface, and context resources intern by native pointer. Destroy and `terminate/1` poison them; later calls raise `badarg`.
+- `get_current_context/0`, `get_current_display/0`, and `get_current_surface/1` follow the process's `make_current/4` bind, not `eglGetCurrent*` on a scheduler thread.
 
-You do not need to really formally understand those rules as most of the times,
-this is to make the API more idiomatic
-Equipped with common sense and the API reference, you will not fight the 
-binding.
-
-## Mapping Rules
-
-To be written.
-
-- This
-- That
-
-- `eglGetProcAddress` not implemented
-
-To be written.
-
-## Functions Tables
-
-Here is the list of all EGL functions, organized in alphabetical order, with 
-their equivalent. If exceptions where to be made, it's in the notes.
-
-**B**
+## Display
 
 | EGL | Binding | Notes |
-|---- | ------- | ----- |
-| `eglBindAPI` | `bind_api` | N/A |
-| `eglBindTexImage` | N/A | Deferred. |
+| --- | --- | --- |
+| `eglGetDisplay` | `get_display/1` | Argument must be `default_display`. Native displays use `get_platform_display/3`. |
+| `eglGetPlatformDisplay` | `get_platform_display/3` | Platforms: `wayland`, `x11`, `angle`. Native display is `default_display` or an `egl_native_display` resource. Attrib list is `[]`. |
+| `eglInitialize` | `initialize/1` | Returns `{ok, {Major, Minor}}`. |
+| `eglTerminate` | `terminate/1` | Poisons the display and its interned configs, surfaces, and contexts. |
+| `eglGetError` | `get_error/0` | N/A |
+| `eglQueryString` | `query_string/2` | Display may be `no_display` for `version` and `extensions`. |
 
-**C**
+## Config
 
 | EGL | Binding | Notes |
-|---- | ------- | ----- |
-| `eglChooseConfig` | `choose_config` | XXX: To be implemented.|
-| `eglClientWaitSync` | N/A | Deferred. |
-| `eglCopyBuffers` | N/A | Deferred. |
-| `eglCreateContext` | `create_context` | N/A |
-| `eglCreateImage` | N/A | Deferred. |
-| `eglCreatePbufferFromClientBuffer` | N/A | Deferred. |
-| `eglCreatePbufferSurface` | `create_pbuffer_surface` | N/A |
+| --- | --- | --- |
+| `eglGetConfigs` | `get_configs/1` | Interned configs. |
+| `eglChooseConfig` | `choose_config/2` | Attribute list of `{Name, Value}` tuples. Bitfields are lists of atoms. |
+| `eglGetConfigAttrib` | `get_config_attrib/3` | N/A |
+
+## Surface
+
+| EGL | Binding | Notes |
+| --- | --- | --- |
+| `eglCreateWindowSurface` | `create_window_surface/4` | Native window is an `egl_window` resource. Attribs are packed; `[]` is NULL. |
+| `eglCreatePbufferSurface` | `create_pbuffer_surface/3` | N/A |
 | `eglCreatePixmapSurface` | N/A | Deferred. |
-| `eglCreatePlatformPixmapSurface` | N/A | Deferred. |
 | `eglCreatePlatformWindowSurface` | N/A | Window surfaces stay `create_window_surface/4`. |
-| `eglCreateSync` | N/A | Deferred. |
-| `eglCreateWindowSurface` | `create_window_surface` | XXX: To be implemented. |
-
-**D**
-
-| EGL | Binding | Notes |
-|---- | ------- | ----- |
-| `eglDestroyContext` | `destroy_context` | N/A |
-| `eglDestroyImage` | N/A | Deferred. |
-| `eglDestroySurface` | `destroy_surface` | N/A |
-| `eglDestroySync` | N/A | Deferred. |
-
-**G**
-
-| EGL | Binding | Notes |
-|---- | ------- | ----- |
-| `eglGetConfigAttrib` | `get_config_attrib` | N/A |
-| `eglGetConfigs` | `get_configs` | N/A |
-| `eglGetCurrentContext` | `get_current_context` | N/A |
-| `eglGetCurrentDisplay` | `get_current_display` | N/A |
-| `eglGetCurrentSurface` | `get_current_surface` | N/A |
-| `eglGetDisplay` | `get_display` | N/A |
-| `eglGetError` | `get_error` | N/A |
-| `eglGetPlatformDisplay` | `get_platform_display` | Platforms: `wayland`, `x11`, `angle`. Native display is `default_display` or an `egl_native_display` resource. Attrib list is `[]`. |
-| `eglGetProcAddress` | N/A | N/A |
-| `eglGetSyncAttrib` | N/A | Deferred. |
-
-**I**
-
-| EGL | Binding | Notes |
-|---- | ------- | ----- |
-| `eglInitialize` | `initialize` | N/A |
-
-**M**
-
-| EGL | Binding | Notes |
-|---- | ------- | ----- |
-| `eglMakeCurrent` | `make_current` | N/A |
-
-**Q**
-
-| EGL | Binding | Notes |
-|---- | ------- | ----- |
-| `eglQueryAPI` | `query_api` | N/A |
-| `eglQueryContext` | `query_context` | N/A |
-| `eglQueryString` | `query_string` | N/A |
-| `eglQuerySurface` | `query_surface` | N/A |
-
-**R**
-
-| EGL | Binding | Notes |
-|---- | ------- | ----- |
+| `eglCreatePlatformPixmapSurface` | N/A | Deferred. |
+| `eglDestroySurface` | `destroy_surface/2` | Poisons the surface. |
+| `eglQuerySurface` | `query_surface/3` | N/A |
+| `eglSurfaceAttrib` | `surface_attrib/4` | N/A |
+| `eglBindTexImage` | N/A | Deferred. |
 | `eglReleaseTexImage` | N/A | Deferred. |
-| `eglReleaseThread` | `release_thread` | N/A |
+| `eglCreatePbufferFromClientBuffer` | N/A | Deferred. |
+| `eglCopyBuffers` | N/A | Deferred. |
 
-**S**
-
-| EGL | Binding | Notes |
-|---- | ------- | ----- |
-| `eglSurfaceAttrib` | `surface_attrib` | N/A |
-| `eglSwapBuffers` | `swap_buffers` | N/A |
-| `eglSwapInterval` | `swap_interval` | N/A |
-
-**T**
+## Context
 
 | EGL | Binding | Notes |
-|---- | ------- | ----- |
-| `eglTerminate` | `terminate` | N/A |
+| --- | --- | --- |
+| `eglBindAPI` | `bind_api/1` | Client API is not forced inside `create_context/4`. |
+| `eglQueryAPI` | `query_api/0` | N/A |
+| `eglCreateContext` | `create_context/4` | Starts the command-executor thread. Share may be `no_context`. |
+| `eglDestroyContext` | `destroy_context/2` | Joins the executor and poisons the context. |
+| `eglMakeCurrent` | `make_current/4` | Draw/read may be `no_surface`. Context may be `no_context` to unbind. |
+| `eglGetCurrentContext` | `get_current_context/0` | From the pid map. |
+| `eglGetCurrentDisplay` | `get_current_display/0` | From the pid map. |
+| `eglGetCurrentSurface` | `get_current_surface/1` | `draw` or `read`. From the pid map. |
+| `eglQueryContext` | `query_context/3` | N/A |
+| `eglWaitClient` | `wait_client/0` | N/A |
+| `eglWaitGL` | `wait_gl/0` | N/A |
+| `eglWaitNative` | `wait_native/1` | Argument is `core_native_engine`. |
+| `eglReleaseThread` | `release_thread/0` | N/A |
 
-**W**
+## Swap
 
 | EGL | Binding | Notes |
-|---- | ------- | ----- |
-| `eglWaitClient` | `wait_client` | N/A |
-| `eglWaitGL` | `wait_gl` | N/A |
-| `eglWaitNative` | `wait_native` | N/A |
-| `eglWaitSync` | N/A | Deferred. |
+| --- | --- | --- |
+| `eglSwapBuffers` | `swap_buffers/2` | Runs on the current context's executor. |
+| `eglSwapInterval` | `swap_interval/2` | N/A |
+
+## Not implemented
+
+| EGL | Binding | Notes |
+| --- | --- | --- |
+| `eglGetProcAddress` | N/A | Extension loading is out of scope. |
+| `eglCreateSync` / `eglDestroySync` / `eglClientWaitSync` / `eglGetSyncAttrib` / `eglWaitSync` | N/A | Deferred. |
+| `eglCreateImage` / `eglDestroyImage` | N/A | Deferred. |

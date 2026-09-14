@@ -6,6 +6,8 @@ egl_get_configs_test() ->
     {ok, _Version} = egl:initialize(Display),
 
     {ok, Configs} = egl:get_configs(Display),
-    test = Configs,
+    ?assert(is_list(Configs)),
+    ?assert(Configs =/= []),
+    {ok, Configs} = egl:get_configs(Display),
 
     ok.

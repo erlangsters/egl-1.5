@@ -55,11 +55,11 @@ not the goal.
 
 | Family | Status | Notes |
 | --- | --- | --- |
-| Display | implemented | `get_display(default_display)` requires that atom and calls `eglGetDisplay(EGL_DEFAULT_DISPLAY)`. Native displays use `get_platform_display/3`. |
-| Config | implemented | `choose_config`, `get_configs`, `get_config_attrib`. Tests exist. Mapping docs still say `choose_config` is unimplemented. |
-| Context | implemented | `create_context`, `destroy_context`, `query_context`, `get_current_context`. Client API is `bind_api/1`. |
-| Surface | implemented | Pbuffer and window surfaces work. Window attribs are packed. Pixmap and platform surfaces are unexported (deferred). |
-| Current / thread | implemented | `make_current`, `bind_api`, `query_api`, `release_thread`, `wait_client`, `wait_gl`, `wait_native`. Unbind with no current context is `ok`. |
+| Display | implemented | Interned by native pointer. `get_display(default_display)` requires that atom. Poisoned by `terminate/1`. Native displays use `get_platform_display/3`. |
+| Config | implemented | Interned by native pointer. Poisoned with the owner display. Mapping docs still say `choose_config` is unimplemented. |
+| Context | implemented | Interned by native pointer. Destroy and owner `terminate` poison. Client API is `bind_api/1`. |
+| Surface | implemented | Interned by native pointer. Destroy and owner `terminate` poison. Window attribs are packed. Pixmap and platform surfaces are unexported (deferred). |
+| Current / thread | implemented | `make_current` records display/draw/read/context per pid. `get_current_*` returns interned terms from that map. Unbind with no current context is `ok`. |
 | Swap | implemented | `swap_buffers`, `swap_interval`. |
 | Query | implemented | `query_string`, `query_surface`, `surface_attrib`, current display/surface. Current getters allocate a new resource each time. |
 | Platform display | implemented | `wayland`, `x11`, `angle`. Attrib list is `[]` only. GLFW windows on Wayland need `glfw:display_egl_handle/0`, not `default_display`. |
@@ -68,7 +68,7 @@ not the goal.
 | Teximage / OpenVG buffer | deferred | Unexported. C stubs commented out. |
 | Interpolation | implemented | C ABI: `get_egl_window_resource_type`, `get_egl_native_display_resource_type`, `egl_execute_command`. Used by `glfw` and the OpenGL NIFs. Docs are unfinished. |
 | Documentation | planned | Mapping table exists and is stale. Thread-safety and command-executor extras are stubs. Many `-doc` blocks are `To be written`. |
-| Tests | planned | eunit covers display, config, context, pbuffer, surface attribs, queries. CI runs only `egl_get_display_test`. No window-surface eunit (needs GLFW). |
+| Tests | implemented | Headless eunit is the assessment tool: display, config, context, pbuffer, current, destroy, terminate. CI runs full `rebar3 eunit`. Ubuntu uses `EGL_PLATFORM=surfaceless`. Window surfaces stay a GLFW composition test. |
 
 ## Planned For First Release
 
@@ -77,8 +77,6 @@ patch.
 
 | Item | Slice | Rationale |
 | --- | --- | --- |
-| Resource intern and poison | 4 | Destroy/`terminate` must invalidate terms. Current getters must return the interned handle. |
-| CI pbuffer suite | 5 | Compile-only plus `egl_get_display_test` does not prove the core path. |
 | Documentation | 6 | Mapping, extras, README, missing `-doc`. |
 
 ## Deferred
@@ -109,9 +107,6 @@ Intentionally outside the first public surface.
 
 Not design questions. Fix them in the slice that owns the family.
 
-- Display, config, surface, and context resource dtors are no-ops.
-  `get_current_context` and `get_current_surface` wrap the native pointer
-  in a new resource. Slice 4.
 - `docs/api-mapping.md` marks implemented functions (`choose_config`,
   `create_window_surface`, …) as unimplemented. Slice 6.
 

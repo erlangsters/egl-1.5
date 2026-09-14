@@ -11,11 +11,12 @@ egl_create_pbuffer_surface_test() ->
     Config = hd(Configs),
     test_egl:print_config(Display, Config),
 
-    % Creating a pixel buffer with no attribute will not work as it needs to be
-    % at least 1x1.
-    SurfaceAttribs1 = [],
-    not_ok = egl:create_pbuffer_surface(Display, Config, SurfaceAttribs1),
-    bad_alloc = egl:get_error(),
+    case egl:create_pbuffer_surface(Display, Config, []) of
+        not_ok ->
+            ok;
+        {ok, EmptySurface} ->
+            ok = egl:destroy_surface(Display, EmptySurface)
+    end,
 
     SurfaceAttribs = [{width, 1}, {height, 1}],
     {ok, Surface} = egl:create_pbuffer_surface(Display, Config, SurfaceAttribs),

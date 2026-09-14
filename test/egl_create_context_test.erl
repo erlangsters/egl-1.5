@@ -6,7 +6,7 @@ egl_create_context_test() ->
     {ok, {_, _}} = egl:initialize(Display),
     ok = egl:bind_api(opengl_api),
 
-    ConfigAttribs = [],
+    ConfigAttribs = [{surface_type, [pbuffer_bit]}],
     {ok, Configs} = egl:choose_config(Display, ConfigAttribs),
     Config = hd(Configs),
     test_egl:print_config(Display, Config),

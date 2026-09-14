@@ -11,14 +11,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: sudo apt-get install -y libegl-dev
+      - run: sudo apt-get update && sudo apt-get install -y cmake libegl-dev
       - uses: erlangsters/setup-erlang@v1
         with:
           erlang-version: 28
           install-rebar3: true
       - run: |
           rebar3 compile
-          rebar3 eunit -m egl_get_display_test
+          EGL_PLATFORM=surfaceless rebar3 eunit
 
   macos:
     runs-on: macos-latest
@@ -34,7 +34,7 @@ jobs:
           export ANGLE_INCLUDE_DIR="${{ steps.angle.outputs.angle-location }}/include"
           export ANGLE_LIB_DIR="${{ steps.angle.outputs.angle-location }}/lib"
           rebar3 compile
-          rebar3 eunit -m egl_get_display_test
+          rebar3 eunit
 
   windows:
     runs-on: windows-latest
@@ -52,5 +52,5 @@ jobs:
           $env:ANGLE_LIB_DIR = "$angleLocation\lib"
           rebar3 compile
           $env:Path = "$angleLocation\bin;$env:Path"
-          rebar3 eunit -m egl_get_display_test
+          rebar3 eunit
         shell: pwsh
