@@ -17,6 +17,8 @@ ok = egl:destroy_context(Display, Context).
 
 `make_current/4` records that the calling process owns that context and runs `eglMakeCurrent` on the context's executor.
 
+`eglBindAPI` is per-OS-thread. `bind_api/1` before `make_current/4` runs on the calling scheduler thread, which is what `create_context/4` needs. `make_current/4` also binds the context's client API on the executor. After that, `bind_api/1` follows the executor so later API switches land on the same OS thread as OpenGL commands.
+
 ```erlang
 ok = egl:make_current(Display, Surface, Surface, Context).
 ```

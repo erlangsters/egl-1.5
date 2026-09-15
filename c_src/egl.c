@@ -1245,6 +1245,19 @@ static ERL_NIF_TERM bind_context_nif(ErlNifEnv* env, int argc, const ERL_NIF_TER
     }
     EGLContext context = context_resource->context;
 
+    /* eglBindAPI is per-OS-thread. This function runs on the context
+     * executor, so the client API must be bound here before make current.
+     * bind_api/1 before make_current runs on a scheduler thread and does
+     * not affect this one. After make_current, bind_api/1 follows the
+     * executor. */
+    EGLint client_type;
+    if (eglQueryContext(display, context, EGL_CONTEXT_CLIENT_TYPE, &client_type) != EGL_TRUE) {
+        return not_ok_atom;
+    }
+    if (eglBindAPI((EGLenum)client_type) != EGL_TRUE) {
+        return not_ok_atom;
+    }
+
     EGLBoolean result = eglMakeCurrent(display, draw, read, context);
     if (result == EGL_TRUE) {
         ErlNifPid pid;
@@ -1652,7 +1665,7 @@ static ERL_NIF_TERM nif_swap_interval(ErlNifEnv* env, int argc, const ERL_NIF_TE
     }
 }
 
-static ERL_NIF_TERM nif_bind_api(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM bind_api_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     (void)argc;
 
@@ -1668,6 +1681,18 @@ static ERL_NIF_TERM nif_bind_api(ErlNifEnv* env, int argc, const ERL_NIF_TERM ar
     else {
         return not_ok_atom;
     }
+}
+
+static ERL_NIF_TERM nif_bind_api(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+{
+    ErlNifPid pid;
+    enif_self(env, &pid);
+
+    EGLContext* context = active_context_map_find_by_pid(&active_context_map, &pid);
+    if (context != NULL) {
+        return egl_execute_command(bind_api_nif, env, argc, argv);
+    }
+    return bind_api_nif(env, argc, argv);
 }
 
 static ERL_NIF_TERM nif_query_api(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
