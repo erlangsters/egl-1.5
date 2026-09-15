@@ -70,6 +70,7 @@ set_target_properties(beam-egl PROPERTIES
 if(APPLE)
     set_target_properties(beam-egl PROPERTIES
         LINK_FLAGS "-flat_namespace -undefined suppress"
+        SUFFIX ".so"
     )
 endif()
 

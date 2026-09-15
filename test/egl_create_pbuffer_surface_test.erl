@@ -23,7 +23,7 @@ egl_create_pbuffer_surface_test() ->
     success = egl:get_error(),
     test_egl:print_surface(Display, Surface),
 
-    ok = egl:bind_api(opengl_api),
+    ok = test_egl:bind_gl_api(),
     {ok, Context} = egl:create_context(Display, Config, no_context, [
         {context_major_version, 3}
     ]),

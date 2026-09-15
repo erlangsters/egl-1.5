@@ -61,23 +61,20 @@ not the goal.
 | Surface | implemented | Interned by native pointer. Destroy and owner `terminate` poison. Window attribs are packed. Pixmap and platform surfaces are unexported (deferred). |
 | Current / thread | implemented | `make_current` records display/draw/read/context per pid. `get_current_*` returns interned terms from that map. Unbind with no current context is `ok`. |
 | Swap | implemented | `swap_buffers`, `swap_interval`. |
-| Query | implemented | `query_string`, `query_surface`, `surface_attrib`, current display/surface. Current getters allocate a new resource each time. |
+| Query | implemented | `query_string`, `query_surface`, `surface_attrib`. Current getters return interned terms from the pid map. |
 | Platform display | implemented | `wayland`, `x11`, `angle`. Attrib list is `[]` only. GLFW windows on Wayland need `glfw:display_egl_handle/0`, not `default_display`. |
 | Image | deferred | Unexported. C stubs commented out. |
 | Sync | deferred | Unexported. C stubs commented out. |
 | Teximage / OpenVG buffer | deferred | Unexported. C stubs commented out. |
-| Interpolation | implemented | C ABI: `get_egl_window_resource_type`, `get_egl_native_display_resource_type`, `egl_execute_command`. Used by `glfw` and the OpenGL NIFs. Docs are unfinished. |
-| Documentation | planned | Mapping table exists and is stale. Thread-safety and command-executor extras are stubs. Many `-doc` blocks are `To be written`. |
+| Interpolation | implemented | C ABI: `get_egl_window_resource_type`, `get_egl_native_display_resource_type`, `egl_execute_command`. Used by `glfw` and the OpenGL NIFs. |
+| Documentation | implemented | Public mapping, extras, README, and missing `-doc` are filled. A later pass owns completeness and consistency of already-written EGL-paste annotations. |
 | Tests | implemented | Headless eunit is the assessment tool: display, config, context, pbuffer, current, destroy, terminate. CI runs full `rebar3 eunit`. Ubuntu uses `EGL_PLATFORM=surfaceless`. Window surfaces stay a GLFW composition test. |
 
 ## Planned For First Release
 
-These are owed before calling the binding finished. They are not a single
-patch.
-
-| Item | Slice | Rationale |
-| --- | --- | --- |
-| Documentation | 6 | Mapping, extras, README, missing `-doc`. |
+The advertised first-release mapping is implemented. Remaining work is
+deferred families (sync, image, pixmap, teximage, OpenVG) and a later
+completeness pass on already-written `-doc` bodies.
 
 ## Deferred
 

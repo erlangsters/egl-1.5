@@ -11,63 +11,34 @@
 -moduledoc """
 EGL 1.5 binding.
 
-It implements an idiomatic binding to the GLFW library.
+It implements an idiomatic binding to EGL 1.5.
 
 > The API was minimally adjusted, in obvious ways, to be more idiomatic to work
 > in Erlang and Elixir. Your EGL knowledge remains entirely applicable.
 
 ```erlang
-Display = egl:get_display(default_display).
-{ok, {_, _}} = egl:initialize(Display).
-
-ConfigAttribs = [
-    {surface_type, [window_bit]},
+Display = egl:get_display(default_display),
+{ok, {_, _}} = egl:initialize(Display),
+ok = egl:bind_api(opengl_api),
+{ok, [Config | _]} = egl:choose_config(Display, [
+    {surface_type, [pbuffer_bit]},
     {renderable_type, [opengl_bit]}
-].
-{ok, Configs} = egl:choose_config(Display, ConfigAttribs).
-Config = hd(Configs).
-
-ContextAttribs = [
+]),
+{ok, Surface} = egl:create_pbuffer_surface(Display, Config, [{width, 1}, {height, 1}]),
+{ok, Context} = egl:create_context(Display, Config, no_context, [
     {context_major_version, 3}
-].
-{ok, Context} =
-    egl:create_context(Display, Config, no_context, ContextAttribs).
-
-XXX: create surface
-
+]),
 ok = egl:make_current(Display, Surface, Surface, Context).
 ```
 
-> It's often used with the GLFW binding
->
-> ```erlang
-> {ok, Window} = glfw:create_window(640, 480, "Hello, World!"),
-> WindowHandle = glfw:window_egl_handle(Window).
-> {ok, Surface} = egl:create_window_surface(Display, Config, WindowHandle, []).
-% egl_debug:display_error_if_any(create_window_surface).
-> ```
->
-> Blabla.
+With GLFW, open the display from `glfw:display_egl_handle/0` on Wayland and
+pass `glfw:window_egl_handle/1` to `create_window_surface/4`.
 
+Display, config, surface, and context terms intern by native pointer. Destroy
+and `terminate/1` poison them; later calls raise `badarg`.
 
-For more example code, the demo tests and test suites in the repository are
-good place, to find example. xxx
-
-If you're confused about the API and how a GLFW feature translates in this
-binding, consult the [API mapping](docs/api-mapping.md) document, which
-document every aspect of it.
-
-Note that it tries to follow the same mapping conventions as the OpenGL bindings
-and the GLFW binding.
-
-The EGL objects are represented as Erlang references.
-xxx: talk about memory management.
-
-Unlike the OpenGL APIs, EGL does not have a "enum" type which is nicely mapped
-to Erlang atoms. However, the concept of "enum" is still present in the API .
-
-Another source of reference is the
-[test suites](https://github.com/erlangsters/egl-1.5/tree/master/test)
+For more example code, the test suite in the repository is a good place to
+start. Mapping rules live in the [API mapping](docs/api-mapping.md).
 """.
 
 -export_type([
@@ -334,20 +305,20 @@ Sibling NIFs such as GLFW create this term. It is not constructed from Erlang.
 -type native_display() :: reference().
 -doc "EGL platforms accepted by `get_platform_display/3`.".
 -type platform() :: wayland | x11 | angle.
--doc("EGLConfig").
+-doc "An interned EGLConfig. Later calls raise `badarg` after owner `terminate/1`.".
 -type config() :: reference().
--doc("EGLSurface").
+-doc "An interned EGLSurface. Later calls raise `badarg` after destroy or owner `terminate/1`.".
 -type surface() :: reference().
--doc("EGLContext").
+-doc "An interned EGLContext. Later calls raise `badarg` after destroy or owner `terminate/1`.".
 -type context() :: reference().
--doc("EGLClientBuffer").
+-doc "Unused. `EGLClientBuffer` is deferred.".
 -type client_buffer() :: reference().
--doc("EGLSync").
+-doc "Unused. `EGLSync` is deferred.".
 -type sync() :: reference().
--doc("EGLImage").
+-doc "Unused. `EGLImage` is deferred.".
 -type image() :: reference().
 
--doc("To be written.").
+-doc "Framebuffer configuration attributes that can be queried.".
 -type config_attrib() ::
     alpha_size |
     alpha_mask_size |
@@ -383,7 +354,7 @@ Sibling NIFs such as GLFW create this term. It is not constructed from Erlang.
     transparent_blue_value
 .
 
--doc("To be written.").
+-doc "Attribute list passed to `choose_config/2`. Bitfields are lists of atoms.".
 -type config_attribs_list() :: [
     {alpha_mask_size, pos_integer()} |
     {alpha_size, pos_integer()} |
@@ -418,7 +389,7 @@ Sibling NIFs such as GLFW create this term. It is not constructed from Erlang.
     {transparent_blue_value, dont_care | pos_integer()}
 ].
 
--doc("To be written.").
+-doc "Attribute list passed to `create_pbuffer_surface/3`.".
 -type surface_attribs_list() :: [
     {gl_colorspace, gl_colorspace_srgb | gl_colorspace_linear} |
     {height, pos_integer()} |
@@ -437,7 +408,7 @@ Sibling NIFs such as GLFW create this term. It is not constructed from Erlang.
     {vg_alpha_format, vg_alpha_format_nonpre | vg_alpha_format_pre} |
     {vg_colorspace, vg_colorspace_srgb | vg_colorspace_linear}
 ].
--doc("To be written.").
+-doc "Surface attributes that can be queried with `query_surface/3`.".
 -type surface_attrib_get() ::
     config_id |
     gl_colorspace |
@@ -457,13 +428,13 @@ Sibling NIFs such as GLFW create this term. It is not constructed from Erlang.
     vg_colorspace |
     width
 .
--doc("To be written.").
+-doc "Surface attributes that can be set with `surface_attrib/4`.".
 -type surface_attrib_set() ::
     mipmap_level |
     multisample_resolve |
     swap_behavior
 .
--doc("To be written.").
+-doc "Attribute list passed to `create_context/4`.".
 -type context_attribs_list() :: [
     {context_major_version, pos_integer()} |
     {context_minor_version, pos_integer()} |
@@ -477,7 +448,7 @@ Sibling NIFs such as GLFW create this term. It is not constructed from Erlang.
         no_reset_notification | lose_context_on_reset
     }
 ].
--doc("To be written.").
+-doc "Context attributes that can be queried with `query_context/3`.".
 -type context_attrib_get() ::
     config_id |
     context_client_type |

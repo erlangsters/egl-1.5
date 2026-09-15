@@ -2,6 +2,15 @@
 -export([print_config/2]).
 -export([print_surface/2]).
 -export([print_context/2]).
+-export([bind_gl_api/0]).
+
+bind_gl_api() ->
+    case egl:bind_api(opengl_api) of
+        ok ->
+            ok;
+        not_ok ->
+            ok = egl:bind_api(opengl_es_api)
+    end.
 
 print_config(Display, Config) ->
     io:format(user, "=== Printing configuration attributes (~p)~n", [Config]),

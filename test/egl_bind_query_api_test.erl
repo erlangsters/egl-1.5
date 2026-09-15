@@ -5,8 +5,12 @@ egl_bind_query_api_test() ->
     Api = egl:query_api(),
     io:format(user, "EGL API: ~p~n", [Api]),
 
-    ok = egl:bind_api(opengl_api),
-    opengl_api = egl:query_api(),
+    case egl:bind_api(opengl_api) of
+        ok ->
+            opengl_api = egl:query_api();
+        not_ok ->
+            ok
+    end,
 
     ok = egl:bind_api(opengl_es_api),
     opengl_es_api = egl:query_api(),

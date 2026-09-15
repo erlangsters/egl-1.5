@@ -63,7 +63,7 @@ erlang:load_nif(SoName, EGLNifLocation).
 
 In the `nif_module_load` function of your NIF library, you can retrieve a
 pointer to the `get_egl_window_resource_type()` function which allows to
-retrieve the ``ErlNifResourceType`.
+retrieve the `ErlNifResourceType`.
 
 ```c
 typedef ErlNifResourceType* (*get_egl_window_resource_type_fn)(ErlNifEnv*);
