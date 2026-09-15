@@ -32,7 +32,7 @@ Written by the Erlangsters [community](https://about.erlangsters.org/) and relea
 
 ## Getting started
 
-Pick an OpenGL binding and add both dependencies. Native compilation needs a C compiler, CMake, and EGL. On macOS and Windows set `ANGLE_INCLUDE_DIR` and `ANGLE_LIB_DIR`. The GitHub [workflow](.github/workflows/workflow.yml) is the starting point for packages.
+Pick an OpenGL binding and add both dependencies. Native compilation needs a C compiler, CMake, and EGL. On macOS and Windows set `ANGLE_INCLUDE_DIR` and `ANGLE_LIB_DIR`. On Windows, put ANGLE's `bin` directory on `PATH` before running. The GitHub [workflow](.github/workflows/workflow.yml) is the starting point for packages.
 
 A headless pbuffer path:
 
